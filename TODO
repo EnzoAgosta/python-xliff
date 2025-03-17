@@ -1,0 +1,11 @@
+- Reorder classes to remove errors
+- Properly implement attributes
+- Add functions:
+  - from_element
+    no validation
+  - to_element
+    no validation, assume valid types
+  - validate
+    recursive using iteration not recursion
+    maybe recursive as option?
+- Add tests

@@ -1,0 +1,21 @@
+[project]
+name = "python-xliff"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Enzo Agosta" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "lxml>=5.3.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+docs = [
+    "sphinx>=8.2.3",
+]
