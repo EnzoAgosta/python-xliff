@@ -16,6 +16,4 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-docs = [
-    "sphinx>=8.2.3",
-]
+docs = []

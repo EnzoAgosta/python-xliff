@@ -1,5 +1,4 @@
-- Reorder classes to remove errors
-- Properly implement attributes
+- Create types based on official spec
 - Add functions:
   - from_element
     no validation

@@ -4,8 +4,10 @@ from collections.abc import MutableSequence
 from dataclasses import dataclass, field
 from warnings import deprecated
 
+from python_xliff.Objects.extras import CONTEXT_TYPE, PURPOSE, UNIT, CountType
 
-@dataclass
+
+@dataclass(slots=True, kw_only=True)
 class CountGroup:
     """
     *Count group* - The <count-group> element holds count elements relating to
@@ -16,13 +18,16 @@ class CountGroup:
     the :class:`CountGroup` for reference within the :class:`File` element.
     """
 
-    # Required Attributes
     name: str
-    # Content
+    """
+    Name - The name attribute specifies the user-defined name of a named group
+    element. This is used for identification purposes only and is not referenced
+    with the file, unless by a processing instruction.
+    """
     counts: MutableSequence[Count]
 
 
-@dataclass
+@dataclass(slots=True, kw_only=True)
 class Count:
     """
     *Count* - The <count> element contains information about counts.
@@ -35,19 +40,30 @@ class Count:
     was produced.
     """
 
-    # Required Attributes
-    count_type: str
-    # Optional Attributes
-    phase_name: str | None = field(default=None)
-    unit: str | None = field(default=None)
-    # Content
     value: int
+    count_type: CountType | str
+    """
+    *Count type* - The count-type attribute specifies the purpose of the
+    :class:`Count` element. For example: count-type="total" for the total count
+    of words in the current scope.
+    """
+    phase_name: str | None = field(default=None)
+    """
+    *Phase Name* - The phase-name attribute provides a unique name for a
+    :class:`Phase` element. It is used in other elements in the file to refer to
+    the given :class:`Phase` element.
+    """
+    unit: UNIT | str | None = field(default=None)
+    """
+    *Unit* - The unit attribute specifies the units counted in a :class:`Count`
+    element.
+    """
 
 
-@dataclass
+@dataclass(slots=True, kw_only=True)
 class ContextGroup:
     """
-    *Context group* - The <context-group> element holds context elements
+    *Context group* - The :class:`ContextGroup` element holds context elements
     relating to the level in the tree in which it occurs. Thus context can be
     set at a :class:`Group` level, a :class:`TransUnit` level, or a
     :class:`AltTrans` level.
@@ -67,18 +83,32 @@ class ContextGroup:
     is for memory lookups.
     """
 
-    # Optional Attributes
-    crc: str | None = field(default=None)
+    contexts: MutableSequence[Context] = field(default_factory=list)
+    crc: float | None = field(default=None)
+    """
+    *Cyclic redundancy checking* - A private value used to verify data as it is
+    returned to the producer. The generation and verification of this number is
+    tool-specific.
+    """
     name: str | None = field(default=None)
-    purpose: str | None = field(default=None)
-    # Content
-    contexts: MutableSequence[Context]
+    """
+    Name - The name attribute specifies the user-defined name of a named group
+    element. This is used for identification purposes only and is not referenced
+    with the file, unless by a processing instruction.
+    """
+    purpose: PURPOSE | str | None = field(default=None)
+    """
+    *Purpose* - The purpose attribute specifies the purpose of a
+    :class:`ContextGroup` element. For example: purpose="information"
+    indicates the content is informational only and not used for specific
+    processing.
+    """
 
 
-@dataclass
+@dataclass(slots=True, kw_only=True)
 class Context:
     """
-    *Context* - The <context> element describes the context of a <source> within
+    *Context* - The <context> element describes the context of a :class:`Source` within
     a :class:`TransUnit` or a :class:`AltTrans`. The purpose of this context
     information is to allow certain pieces of text to have different translations
     depending on where they came from. The translation of a piece of text may
@@ -90,21 +120,34 @@ class Context:
     The required :attr:`context_type` attribute indicates what the context
     information is; e.g. "recordtitle" indicates the name of a record in a database.
     The optional :attr:`match_mandatory` attribute indicates that translations
-    of the <source> elements within the scope of this context must have the same
+    of the :class:`Source` elements within the scope of this context must have the same
     context. The optional :attr:`crc` attribute allows a verification of the data.
     """
 
-    # Required Attributes
-    context_type: str
-    # Optional Attributes
-    match_mandatory: str | None = field(default=None)
-    crc: str | None = field(default=None)
-    # Content
     content: str
+    context_type: CONTEXT_TYPE | str
+    """
+    *Context type* - The context-type attribute specifies the context and the
+    type of resource or style of the data of a given element.
+    For example, to define if it is a label, or a menu item in the case of
+    resource-type data, or the style in the case of document-related data.
+    """
+    match_mandatory: bool | None = field(default=None)
+    """
+    *Match mandatory* - Indicates that any :class:`AltTrans` element of the
+    parent :class:`TransUnit` must have the same :class:`Context` as the
+    :class:`TransUnit`.
+    """
+    crc: float | None = field(default=None)
+    """
+    *Cyclic redundancy checking* - A private value used to verify data as it is
+    returned to the producer. The generation and verification of this number is
+    tool-specific.
+    """
 
 
 @deprecated("DEPRECATED in version 1.1")
-@dataclass
+@dataclass(slots=True, kw_only=True)
 class PropGroup:
     """ "
     *Property group* - The <prop-group> element contains :class:`Prop` elements.
@@ -117,14 +160,17 @@ class PropGroup:
       Instead, use attributes defined in a namespace different from XLIFF.
       See the Extensibility section of the official Spec for more information."""
 
-    # Optional Attributes
-    name: str | None = field(default=None)
-    # Content
     props: MutableSequence[Prop]
+    name: str | None = field(default=None)
+    """
+    Name - The name attribute specifies the user-defined name of a named group
+    element. This is used for identification purposes only and is not referenced
+    with the file, unless by a processing instruction.
+    """
 
 
 @deprecated("DEPRECATED in version 1.1")
-@dataclass
+@dataclass(slots=True, kw_only=True)
 class Prop:
     """
     *Property* - The :class:`Prop` element allows the tools to specify
@@ -137,9 +183,21 @@ class Prop:
       Instead, use attributes defined in a namespace different from XLIFF.
       See the Extensibility section of the official Spec for more information."""
 
-    # Required Attributes
     prop_type: str
-    # Optional Attributes
-    lang: str | None = field(default=None)
-    # Content
+    """
+    *Property type* - The prop-type attribute specifies the type of a
+    :class:`Prop` element.
+    
+    ..warning::
+        Important: Because the :class:`Prop` element was DEPRECATED in version
+        1.1 and this attribute is only a member of that element, this attribute
+        is also deprecated. Instead, use attributes defined in a namespace
+        different from XLIFF. See the Extensibility section for more information.
+    """
     content: str
+    lang: str | None = field(default=None)
+    """
+    *Language* - The xml:lang attribute specifies the language variant of the
+    text of a given element. For example: xml:lang="fr-FR" indicates the French
+    language as spoken in France.
+    """
