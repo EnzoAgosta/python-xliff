@@ -3,13 +3,12 @@ name = "python-xliff"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-authors = [
-    { name = "Enzo Agosta" }
-]
+authors = [{ name = "Enzo Agosta" }]
 requires-python = ">=3.13"
 dependencies = [
     "lxml>=5.3.1",
 ]
+
 
 [build-system]
 requires = ["hatchling"]
@@ -17,3 +16,7 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 docs = []
+dev = [
+    "mypy>=1.15.0",
+    "types-lxml>=2025.3.4",
+]

@@ -3,11 +3,10 @@ from __future__ import annotations
 from collections.abc import MutableSequence
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Literal
 
 from lxml.etree import _Element
 
-from python_xliff.Objects.extras import DATATYPE, PRIORITY
+from python_xliff.Objects.extras import ANNOTATES, DATATYPE, PRIORITY
 from python_xliff.Objects.NamedGroups import CountGroup, PropGroup
 from python_xliff.Objects.Structural import BinUnit, Group, TransUnit
 
@@ -269,7 +268,7 @@ class Note:
     from="reviewer" indicates a note from a reviewer.
     """
     priority: PRIORITY | None = field(default=None)
-    annotates: Literal["source", "target", " general"] | None = field(default=None)
+    annotates: ANNOTATES | None = field(default=None)
     """
     *Annotates* - Indicates if a :class:`Note` element pertains to the
     :class:`Source` or the :class:`Target`, or neither in particular.

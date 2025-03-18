@@ -1,13 +1,15 @@
 from collections.abc import MutableSequence
 from dataclasses import dataclass, field
-from typing import Literal, Self
+from typing import Self
 
 from python_xliff.Objects.extras import (
+    ALT_TRANS_TYPE,
     DATATYPE,
+    REFORMAT,
     RESTYPE,
-    SIZEUNIT,
+    SIZE_UNIT,
     STATE,
-    STATEQUALIFIER,
+    STATE_QUALIFIER,
     Coord,
     Font,
 )
@@ -75,7 +77,7 @@ class Target:
     *State* - The status of a particular translation in a :class:`Target` or
     :class:`BinTarget` element.
     """
-    state_qualifier: STATEQUALIFIER | str | None = field(default=None)
+    state_qualifier: STATE_QUALIFIER | str | None = field(default=None)
     """
     *State-qualifier* - Describes the state of a particular translation in a
     :class:`Target` or :class:`BinTarget` element.
@@ -206,7 +208,7 @@ class BinTarget:
     in the key/value pair in a Java properties file, the ID of a string in a
     Windows string table, the index value of an entry in a database table, etc.
     """
-    state_qualifier: STATEQUALIFIER | str | None = field(default=None)
+    state_qualifier: STATE_QUALIFIER | str | None = field(default=None)
     """
     *State-qualifier* - Describes the state of a particular translation in a
     :class:`Target` or :class:`BinTarget` element.
@@ -382,11 +384,7 @@ class AltTrans:
     :class:`Phase` element. It is used in other elements in the file to refer to
     the given :class:`Phase` element.
     """
-    alttranstype: (
-        str
-        | Literal["proposal", "previous-version", "rejected", "reference", "accepted"]
-        | None
-    ) = field(default=None)
+    alttranstype: str | ALT_TRANS_TYPE | None = field(default=None)
     """
     *Resource type* - Indicates the type of translation within the containing alt-trans element.
     """
@@ -457,7 +455,7 @@ class TransUnit:
     *Translate* - The translate attribute indicates whether or not the text
     referred to should be translated.
     """
-    reformat: bool | MutableSequence[str] | None = field(default=None)
+    reformat: bool | MutableSequence[REFORMAT] | None = field(default=None)
     """
     Reformat - Indicates whether some properties (size, font, etc.) of the target
     can be formatted differently from the source.
@@ -572,7 +570,7 @@ class TransUnit:
     this requirement must be done using the encoding and line-break type of the
     final target environment.
     """
-    size_unit: SIZEUNIT | str | None = field(default=None)
+    size_unit: SIZE_UNIT | str | None = field(default=None)
     """
     *Unit of size attributes* - The size-unit attribute specifies the units of
     measure used in the maxheight, minheight, maxwidth, and minwidth attributes.
@@ -838,7 +836,7 @@ class Group:
     this requirement must be done using the encoding and line-break type of the
     final target environment.
     """
-    size_unit: SIZEUNIT | str | None = field(default=None)
+    size_unit: SIZE_UNIT | str | None = field(default=None)
     """
     *Unit of size attributes* - The size-unit attribute specifies the units of
     measure used in the maxheight, minheight, maxwidth, and minwidth attributes.

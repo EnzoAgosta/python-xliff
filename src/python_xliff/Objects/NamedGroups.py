@@ -4,7 +4,7 @@ from collections.abc import MutableSequence
 from dataclasses import dataclass, field
 from warnings import deprecated
 
-from python_xliff.Objects.extras import CONTEXT_TYPE, PURPOSE, UNIT, CountType
+from python_xliff.Objects.extras import CONTEXT_TYPE, COUNT_TYPE, PURPOSE, UNIT
 
 
 @dataclass(slots=True, kw_only=True)
@@ -41,7 +41,7 @@ class Count:
     """
 
     value: int
-    count_type: CountType | str
+    count_type: COUNT_TYPE | str
     """
     *Count type* - The count-type attribute specifies the purpose of the
     :class:`Count` element. For example: count-type="total" for the total count
