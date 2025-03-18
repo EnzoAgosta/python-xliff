@@ -272,9 +272,8 @@ class AltTrans:
     """
     crc: float | None = field(default=None)
     """
-    *Cyclic redundancy checking* - A private value used to verify data as it is
-    returned to the producer. The generation and verification of this number is
-    tool-specific.
+    *Cyclic redundancy checking* - Used to verify data as it is returned to the
+    producer. The generation and verification of this number is tool-specific.
     """
     lang: str | None = field(default=None)
     """
