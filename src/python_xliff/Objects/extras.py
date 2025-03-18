@@ -222,7 +222,7 @@ class DATATYPE(Enum):
     """
     HTML = "html"
     """
-    Indicates HyperText Markup Language (HTML) data - document instance.
+    Indicates HyperText Markup Language (HTML) data – document instance.
     """
     HTMLBODY = "htmlbody"
     """
@@ -341,11 +341,11 @@ class DATATYPE(Enum):
     """
     SGML = "sgml"
     """
-    Indicates Standard Generalized Markup Language (SGML) data - document instance.
+    Indicates Standard Generalized Markup Language (SGML) data – document instance.
     """
     SGMLDTD = "sgmldtd"
     """
-    Indicates Standard Generalized Markup Language (SGML) data - Document Type
+    Indicates Standard Generalized Markup Language (SGML) data – Document Type
     Definition (DTD).
     """
     SVG = "svg"
@@ -367,15 +367,15 @@ class DATATYPE(Enum):
     """
     XHTML = "xhtml"
     """
-    Indicates Extensible HyperText Markup Language (XHTML) data - document instance.
+    Indicates Extensible HyperText Markup Language (XHTML) data – document instance.
     """
     XML = "xml"
     """
-    Indicates Extensible Markup Language (XML) data - document instance.
+    Indicates Extensible Markup Language (XML) data – document instance.
     """
     XMLDTD = "xmldtd"
     """
-    Indicates Extensible Markup Language (XML) data - Document Type Definition (DTD).
+    Indicates Extensible Markup Language (XML) data – Document Type Definition (DTD).
     """
     XSL = "xsl"
     """
@@ -390,7 +390,7 @@ class DATATYPE(Enum):
 @dataclass(slots=True, kw_only=True)
 class Coord:
     """
-    *Coordinates* - The coord attribute specifies the x, y, cx and cy coordinates
+    *Coordinates* – The coord attribute specifies the x, y, cx and cy coordinates
     of the text for a given element. The cx and cy values must represent the
     width and the height (as in Windows resources).
     The extraction and merging tools must make the right conversion if the
@@ -406,7 +406,7 @@ class Coord:
 @dataclass(slots=True, kw_only=True)
 class Font:
     """
-    *Font* - The font attribute specifies the font name, size, and weight of the
+    *Font* – The font attribute specifies the font name, size, and weight of the
     text for a given element. The font attribute would generally be used for
     resource-type data: change of font in document-type data can be marked with
     the :class:`G` element.
@@ -614,7 +614,7 @@ class MTYPE(Enum):
 
 class POS(Enum):
     """
-    *Position* - Indicates whether an isolated tag :class:`It` is a beginning or an
+    *Position* – Indicates whether an isolated tag :class:`It` is a beginning or an
     ending tag."
     """
 
@@ -1326,7 +1326,7 @@ class ALT_TRANS_TYPE(Enum):
 
 class ASSOC(Enum):
     """
-    *Association* - Indicates the association of a :class:`Ph` with the text
+    *Association* – Indicates the association of a :class:`Ph` with the text
     prior or after the inline element.
     """
 
@@ -1346,7 +1346,7 @@ class ASSOC(Enum):
 
 class ANNOTATES(Enum):
     """
-    *Annotates* - Indicates if a :class:`Note` element pertains to the
+    *Annotates* – Indicates if a :class:`Note` element pertains to the
     :class:`Source` or the :class:`Target`, or neither in particular.
     """
 

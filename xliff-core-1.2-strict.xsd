@@ -237,7 +237,7 @@ Jan-10-2006
       </xsd:enumeration>
       <xsd:enumeration value="html">
         <xsd:annotation>
-          <xsd:documentation>Indicates HyperText Markup Language (HTML) data - document instance.</xsd:documentation>
+          <xsd:documentation>Indicates HyperText Markup Language (HTML) data–document instance.</xsd:documentation>
         </xsd:annotation>
       </xsd:enumeration>
       <xsd:enumeration value="htmlbody">
@@ -382,12 +382,12 @@ Jan-10-2006
       </xsd:enumeration>
       <xsd:enumeration value="sgml">
         <xsd:annotation>
-          <xsd:documentation>Indicates Standard Generalized Markup Language (SGML) data - document instance.</xsd:documentation>
+          <xsd:documentation>Indicates Standard Generalized Markup Language (SGML) data–document instance.</xsd:documentation>
         </xsd:annotation>
       </xsd:enumeration>
       <xsd:enumeration value="sgmldtd">
         <xsd:annotation>
-          <xsd:documentation>Indicates Standard Generalized Markup Language (SGML) data - Document Type Definition (DTD).</xsd:documentation>
+          <xsd:documentation>Indicates Standard Generalized Markup Language (SGML) data–Document Type Definition (DTD).</xsd:documentation>
         </xsd:annotation>
       </xsd:enumeration>
       <xsd:enumeration value="svg">
@@ -412,17 +412,17 @@ Jan-10-2006
       </xsd:enumeration>
       <xsd:enumeration value="xhtml">
         <xsd:annotation>
-          <xsd:documentation>Indicates Extensible HyperText Markup Language (XHTML) data - document instance.</xsd:documentation>
+          <xsd:documentation>Indicates Extensible HyperText Markup Language (XHTML) data–document instance.</xsd:documentation>
         </xsd:annotation>
       </xsd:enumeration>
       <xsd:enumeration value="xml">
         <xsd:annotation>
-          <xsd:documentation>Indicates Extensible Markup Language (XML) data - document instance.</xsd:documentation>
+          <xsd:documentation>Indicates Extensible Markup Language (XML) data–document instance.</xsd:documentation>
         </xsd:annotation>
       </xsd:enumeration>
       <xsd:enumeration value="xmldtd">
         <xsd:annotation>
-          <xsd:documentation>Indicates Extensible Markup Language (XML) data - Document Type Definition (DTD).</xsd:documentation>
+          <xsd:documentation>Indicates Extensible Markup Language (XML) data–Document Type Definition (DTD).</xsd:documentation>
         </xsd:annotation>
       </xsd:enumeration>
       <xsd:enumeration value="xsl">

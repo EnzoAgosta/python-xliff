@@ -14,7 +14,7 @@ from python_xliff.Objects.Structural import BinUnit, Group, TransUnit
 @dataclass(slots=True, kw_only=True)
 class Xliff:
     """
-    *XLIFF document* - The <xliff> element encloses all the other elements of
+    *XLIFF document* – The <xliff> element encloses all the other elements of
     the document. The required version attribute specifies the version of XLIFF.
 
     The optional :attr:`lang` attribute is used to specify the language of the
@@ -24,16 +24,14 @@ class Xliff:
     files: MutableSequence[File] = field(default_factory=list)
     lang: str | None = field(default=None)
     """
-    *Language* - The xml:lang attribute specifies the language variant of the
-    text of a given element. For example: xml:lang="fr-FR" indicates the French
-    language as spoken in France.
+    *Language* - Specifies the language variant of the text of a given element.
     """
 
 
 @dataclass(slots=True, kw_only=True)
 class File:
     """
-    *File* - The :class:`File` element corresponds to a single extracted original
+    *File* – The :class:`File` element corresponds to a single extracted original
     document.
 
     The required :attr:`original` attribute specifies the name of the file from
@@ -61,74 +59,75 @@ class File:
     header: Header
     original: str
     """
-    *Original file* - The original attribute specifies the name of the original
+    *Original file* – The original attribute specifies the name of the original
     file from which the contents of a :class:`File` element has been extracted.
     """
     source_language: str
     """
-    *Source language* - The language for the :class:`Source` elements in the given
+    *Source language* – The language for the :class:`Source` elements in the given
     :class:`File` element.
     """
     datatype: DATATYPE | str
     """
-    *Data type* - The datatype attribute specifies the kind of text contained in
+    *Data type* – The datatype attribute specifies the kind of text contained in
     the element. Depending on that type, you may apply different processes
     to the data. For example: datatype="winres" specifies that the content is
     Windows resources which would allow using the Win32 API in rendering the content.
     """
     tool: str | None = field(default=None)
     """
-    *Creation tool* - The tool attribute is used to specify the signature and
+    *Creation tool* – The tool attribute is used to specify the signature and
     version of the tool that created or modified the document.
     Important: The tool attribute was DEPRECATED in version 1.1. Instead,
     use the :class:`Tool` element and a tool-id attribute.
     """
     tool_id: str | None = field(default=None)
     """
-    *Tool identifier* - The tool-id attribute allows unique identification of a
+    *Tool identifier* – The tool-id attribute allows unique identification of a
     :class:`Tool` element. It is also used in other elements in the file to
     refer to the given :class:`Tool` element.
     """
     date: datetime | None = field(default=None)
     """
-    *Date* - The date attribute indicates when a given element was created or modified
+    *Date* – The date attribute indicates when a given element was created or modified
     """
     space: str | None = field(default=None)
     """
-    *White spaces* - The xml:space attribute specifies how white spaces
+    *White spaces* – The xml:space attribute specifies how white spaces
     (ASCII spaces, tabs and line-breaks) should be treated.
     """
     ts: str | None = field(default=None)
     """
-    *Tool-specific data* - The ts attribute allows you to include short data
-    understood by a specific toolset. You can also use the :class:`Prop`
+    *Tool-specific data* – Used to include short data understood by a specific
+    toolset. You can also use the :class:`python_xliff.Objects.NamedGroups.Prop`
     element to define large properties at the element level.
-    Important: The ts attribute was DEPRECATED in version 1.1. Instead, use
-    attributes defined in a namespace different from XLIFF.
-    See the Extensibility section for more information.
+    
+    .. warning:: 
+        DEPRECATED in version 1.1. Instead, use attributes defined in a
+        namespace different from XLIFF.
     """
     category: str | None = field(default=None)
     """
-    *Category* - This provides information on the subject of what is being
+    *Category* – This provides information on the subject of what is being
     translated. For example: category="medical" for files from a medical related
     product.
     """
     target_language: str | None = field(default=None)
     """
-    *Target language* - The language for the :class:`Target` elements in the
+    *Target language* – The language for the :class:`Target` elements in the
     given :class:`File` element.
     """
     product_name: str | None = field(default=None)
     """
-    *Product name* - The name of the product which uses this file.
+    *Product name* – The name of the product which uses this file.
     """
     product_version: str | None = field(default=None)
     """
-    *Product version* - The version of the product which uses this file.
+    *Product version* – The version of the product which uses this file.
     """
     build_num: str | None = field(default=None)
     """
-    *Build number* - The build number of the version of the product or
+    *Build number* – The build number of the version of the product or
     application the localizable material is for.
     For example: build-num="12" for the 12th build of the new version of a product. 
     """
@@ -139,7 +138,7 @@ class File:
 @dataclass(slots=True, kw_only=True)
 class Header:
     """
-    *File header* - The <header> element contains metadata relating to the
+    *File header* – The <header> element contains metadata relating to the
     :class:'File' element.
     """
 
@@ -156,13 +155,13 @@ class Header:
 @dataclass(slots=True, kw_only=True)
 class Glossary:
     """
-    *Glossary* - The <glossary> element points to or contains a glossary,
+    *Glossary* – The <glossary> element points to or contains a glossary,
     which can be used in the localization of the file.
     """
 
     description: str
     """
-    *Description* - The description attribute provides a description of the
+    *Description* – The description attribute provides a description of the
     glossary.
     """
     content: InternalFile | ExternalFile
@@ -171,13 +170,13 @@ class Glossary:
 @dataclass(slots=True, kw_only=True)
 class Reference:
     """
-    *Reference* - The <reference> element points to or contains reference
+    *Reference* – The <reference> element points to or contains reference
     material, which can aid in the localization of the file.
     """
 
     description: str
     """
-    *Description* - The description attribute provides a description of the
+    *Description* – The description attribute provides a description of the
     glossary.
     """
     content: InternalFile | ExternalFile
@@ -186,7 +185,7 @@ class Reference:
 @dataclass(slots=True, kw_only=True)
 class InternalFile:
     """
-    *Internal file* - The <internal-file> element contains the actual file
+    *Internal file* – The <internal-file> element contains the actual file
     being referenced.
 
     The format of the file is specified by the optional :attr:`form` attribute,
@@ -198,20 +197,21 @@ class InternalFile:
     content: str
     form: str | None = field(default=None)
     """
-    *Format* - Describes the type of format used in an :class:`InternalFile`
+    *Format* – Describes the type of format used in an :class:`InternalFile`
     element. For example: form="text" indicates a plain text format internal file.
     """
     crc: float | None = field(default=None)
     """
-    *Cyclic redundancy checking* - Used to verify data as it is returned to the
-    producer. The generation and verification of this number is tool-specific.
+    *Cyclic redundancy checking* – A private value used to verify data as it is
+    returned to the producer. The generation and verification of this number is
+    tool-specific.
     """
 
 
 @dataclass(slots=True, kw_only=True)
 class ExternalFile:
     """
-    *External file* - The <external-file> element specifies the location of the
+    *External file* – The <external-file> element specifies the location of the
     actual file being referenced.
 
     The required :attr:`href` attribute provides a URI to the file.
@@ -223,14 +223,14 @@ class ExternalFile:
 
     href: str
     """
-    *Hypertext reference* - The location of the file or the URL for an
+    *Hypertext reference* – The location of the file or the URL for an
     :class:`ExternalFile` element. For example:
     href="file:///C:/MyFolder/MyProject/MyFile.htm" indicates a file on a
     local drive.
     """
     uid: str | None = field(default=None)
     """
-    *Unique ID* - The uid attribute is used to provide a unique ID to identify
+    *Unique ID* – The uid attribute is used to provide a unique ID to identify
     the skeleton file.
     """
     crc: int | None = field(default=None)
@@ -239,7 +239,7 @@ class ExternalFile:
 @dataclass(slots=True, kw_only=True)
 class Note:
     """
-    *Note* - The <note> element is used to add localization-related comments to
+    *Note* – The <note> element is used to add localization-related comments to
     the XLIFF document.
 
     The content of Note may be instructions from developers about how to handle
@@ -257,19 +257,17 @@ class Note:
     text: str
     lang: str | None = field(default=None)
     """
-    *Language* - The xml:lang attribute specifies the language variant of the
-    text of a given element. For example: xml:lang="fr-FR" indicates the French
-    language as spoken in France.
+    *Language* - Specifies the language variant of the text of a given element.
     """
     from_: str | None = field(default=None)
     """
-    *From* - Indicates the author of a :class:`Note` element. For example:
+    *From* – Indicates the author of a :class:`Note` element. For example:
     from="reviewer" indicates a note from a reviewer.
     """
     priority: PRIORITY | None = field(default=None)
     annotates: ANNOTATES | None = field(default=None)
     """
-    *Annotates* - Indicates if a :class:`Note` element pertains to the
+    *Annotates* – Indicates if a :class:`Note` element pertains to the
     :class:`Source` or the :class:`Target`, or neither in particular.
     """
 
@@ -277,7 +275,7 @@ class Note:
 @dataclass(slots=True, kw_only=True)
 class PhaseGroup:
     """
-    *Phase group* - The <phase-group> element contains information about the
+    *Phase group* – The <phase-group> element contains information about the
     task that has been performed on the file.
 
     This phase information is specific to the tools and workflow used in
@@ -290,7 +288,7 @@ class PhaseGroup:
 @dataclass(slots=True, kw_only=True)
 class Phase:
     """
-    *Phase information* - The :class:`Phase` element contains metadata about the tasks
+    *Phase information* – The :class:`Phase` element contains metadata about the tasks
     performed in a particular process.
 
     The required :attr:`phase_name` attribute uniquely identifies the phase for
@@ -311,53 +309,53 @@ class Phase:
 
     phase_name: str
     """
-    *Phase Name* - The phase-name attribute provides a unique name for a
+    *Phase Name* – The phase-name attribute provides a unique name for a
     :class:`Phase` element. It is used in other elements in the file to refer to
     the given :class:`Phase` element.
     """
     process_name: str
     """
-    *Process name* - The name specifying the type of process a given
+    *Process name* – The name specifying the type of process a given
     :class:`Phase` corresponds to (e.g. Translation, Proofreading, Sizing, etc.).
     """
     company_name: str | None = field(default=None)
     """
-    *Company name* - The name of the company that has performed a task.
+    *Company name* – The name of the company that has performed a task.
     """
     tool: str | None = field(default=None)
     """
-    *Creation tool* - The tool attribute is used to specify the signature and
+    *Creation tool* – The tool attribute is used to specify the signature and
     version of the tool that created or modified the document.
     Important: The tool attribute was DEPRECATED in version 1.1. Instead,
     use the :class:`Tool` element and a tool-id attribute.
     """
     tool_id: str | None = field(default=None)
     """
-    *Tool identifier* - The tool-id attribute allows unique identification of a
+    *Tool identifier* – The tool-id attribute allows unique identification of a
     :class:`Tool` element. It is also used in other elements in the file to
     refer to the given :class:`Tool` element.
     """
     date: datetime | None = field(default=None)
     """
-    *Date* - The date attribute indicates when a given element was created or modified
+    *Date* – The date attribute indicates when a given element was created or modified
     """
     job_id: str | None = field(default=None)
     """
-    *Job ID* - The identifier given to the localization job.
+    *Job ID* – The identifier given to the localization job.
     This is determined by the entity creating the phase element at the time of
     processing the file.
     """
     contact_name: str | None = field(default=None)
     """
-    *Contact name* - The name of the person that has performed a task in a phase.
+    *Contact name* – The name of the person that has performed a task in a phase.
     """
     contact_email: str | None = field(default=None)
     """
-    *Contact email* - The contact email of the contact-name person
+    *Contact email* – The contact email of the contact-name person
     """
     contact_phone: str | None = field(default=None)
     """
-    *Contact phone* - The phone number of the contact-name person.
+    *Contact phone* – The phone number of the contact-name person.
     """
     notes: MutableSequence[Note] = field(default_factory=list)
 
@@ -365,7 +363,7 @@ class Phase:
 @dataclass(slots=True, kw_only=True)
 class Tool:
     """
-    *Tool* - The <tool> element describes the tool that has been used to execute
+    *Tool* – The <tool> element describes the tool that has been used to execute
     a given task in the document.
 
     The required :attr:`tool_id` attribute uniquely identifies the tool for
@@ -378,22 +376,22 @@ class Tool:
 
     tool_id: str
     """
-    *Tool identifier* - The tool-id attribute allows unique identification of a
+    *Tool identifier* – The tool-id attribute allows unique identification of a
     :class:`Tool` element. It is also used in other elements in the file to
     refer to the given :class:`Tool` element.
     """
     tool_name: str
     """
-    *Tool name* - The tool-name attribute specifies the name of a given tool.
+    *Tool name* – The tool-name attribute specifies the name of a given tool.
     """
     content: MutableSequence[_Element]
     tool_version: str | None = field(default=None)
     """
-    *Tool version* - The tool-version attribute specifies the version of a
+    *Tool version* – The tool-version attribute specifies the version of a
     given tool.
     """
     tool_company: str | None = field(default=None)
     """
-    *Tool company* - The tool-company attribute specifies the company from
+    *Tool company* – The tool-company attribute specifies the company from
     which a tool originates.
     """
