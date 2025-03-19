@@ -5,7 +5,9 @@ from dataclasses import dataclass, field
 
 from typing_extensions import deprecated
 
-from python_xliff.Objects.extras import CONTEXT_TYPE, COUNT_TYPE, PURPOSE, UNIT
+from python_xliff.Extras import CONTEXT_TYPE, COUNT_TYPE, PURPOSE, UNIT
+
+__all__ = ["CountGroup", "Count", "ContextGroup", "Context", "PropGroup", "Prop"]
 
 
 @dataclass(slots=True, kw_only=True)

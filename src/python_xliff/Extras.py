@@ -2,6 +2,31 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Literal
 
+__all__ = [
+    "PRIORITY",
+    "COUNT_TYPE",
+    "CONTEXT_TYPE",
+    "X_PH_CTYPE",
+    "CTYPE",
+    "DATATYPE",
+    "Coord",
+    "Font",
+    "MTYPE",
+    "POS",
+    "REFORMAT",
+    "PURPOSE",
+    "RESTYPE",
+    "SIZE_UNIT",
+    "UNIT",
+    "STATE",
+    "STATE_QUALIFIER",
+    "UNIT",
+    "ALT_TRANS_TYPE",
+    "ASSOC",
+    "ANNOTATES",
+    "VERSION",
+]
+
 
 class PRIORITY(Enum):
     """
@@ -1357,4 +1382,23 @@ class ANNOTATES(Enum):
     TARGET = "target"
     """
     Indicates that the note pertains to the target.
+    """
+
+
+class VERSION(Enum):
+    """
+    *Version* – Specifies the version of XLIFF.
+    """
+
+    VERSION_1_2 = "1.2"
+    """
+    Indicates that the document is in XLIFF 1.2.
+    """
+    VERSION_1_1 = "1.1"
+    """
+    Indicates that the document is in XLIFF 1.1.
+    """
+    VERSION_1_0 = "1.0"
+    """
+    Indicates that the document is in XLIFF 1.0.
     """

@@ -4,7 +4,7 @@ from collections.abc import MutableSequence
 from dataclasses import dataclass, field
 from typing import Self
 
-from python_xliff.Objects.extras import (
+from python_xliff.Extras import (
     ASSOC,
     CTYPE,
     DATATYPE,
@@ -12,6 +12,8 @@ from python_xliff.Objects.extras import (
     POS,
     X_PH_CTYPE,
 )
+
+__all__ = ["G", "X", "Bx", "Ex", "Ph", "Bpt", "Ept", "It", "Sub", "Mrk"]
 
 
 @dataclass(slots=True, kw_only=True)

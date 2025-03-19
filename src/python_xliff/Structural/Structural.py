@@ -2,7 +2,7 @@ from collections.abc import MutableSequence
 from dataclasses import dataclass, field
 from typing import Self
 
-from python_xliff.Objects.extras import (
+from python_xliff.Extras import (
     ALT_TRANS_TYPE,
     DATATYPE,
     REFORMAT,
@@ -13,9 +13,22 @@ from python_xliff.Objects.extras import (
     Coord,
     Font,
 )
-from python_xliff.Objects.Inline import Bpt, Bx, Ept, Ex, G, It, Mrk, Ph, X
-from python_xliff.Objects.NamedGroups import ContextGroup, CountGroup, PropGroup
-from python_xliff.Objects.TopLevel import ExternalFile, InternalFile, Note
+from python_xliff.Inline import Bpt, Bx, Ept, Ex, G, It, Mrk, Ph, X
+from python_xliff.NamedGroups import ContextGroup, CountGroup, PropGroup
+from python_xliff.TopLevel import ExternalFile, InternalFile, Note
+
+__all__ = [
+    "Source",
+    "Target",
+    "BinSource",
+    "BinTarget",
+    "SegSource",
+    "AltTrans",
+    "TransUnit",
+    "BinUnit",
+    "Group",
+    "TransUnit",
+]
 
 
 @dataclass(slots=True, kw_only=True)
