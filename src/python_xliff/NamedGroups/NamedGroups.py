@@ -57,7 +57,7 @@ class ContextGroup:
     """
 
     contexts: MutableSequence[Context] = field(default_factory=list)
-    crc: float | None = field(default=None)
+    crc: str | None = field(default=None)
     """
     *Cyclic redundancy checking* – Used to verify data as it is returned to the
     producer. The generation and verification of this number is tool-specific.
@@ -98,7 +98,7 @@ class Context:
     :class:`python_xliff.Objects.Structural.TransUnit` must have the same
     :class:`Context` as the :class:`python_xliff.Objects.Structural.TransUnit`.
     """
-    crc: float | None = field(default=None)
+    crc: str | None = field(default=None)
     """
     *Cyclic redundancy checking* – Used to verify data as it is returned to the
     producer. The generation and verification of this number is tool-specific.

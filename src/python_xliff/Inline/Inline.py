@@ -246,7 +246,7 @@ class Ph:
     the translation unit.
     """
 
-    crc: float | None = field(default=None)
+    crc: str | None = field(default=None)
     """
     *Cyclic redundancy checking* – Used to verify data as it is returned to the
     producer. The generation and verification of this number is tool-specific.
@@ -315,7 +315,7 @@ class Bpt:
     the attribute :attr:`id` is used to match both tags.
     """
 
-    crc: float | None = field(default=None)
+    crc: str | None = field(default=None)
     """
     *Cyclic redundancy checking* – Used to verify data as it is returned to the
     producer. The generation and verification of this number is tool-specific.
@@ -379,7 +379,7 @@ class Ept:
     the attribute :attr:`id` is used to match both tags.
     """
 
-    crc: float | None = field(default=None)
+    crc: str | None = field(default=None)
     """
     *Cyclic redundancy checking* – Used to verify data as it is returned to the
     producer. The generation and verification of this number is tool-specific.
@@ -445,7 +445,7 @@ class It:
     *Position* – Indicates whether an isolated tag :class:`It` is a beginning or
     an ending tag.
     """
-    crc: float | None = field(default=None)
+    crc: str | None = field(default=None)
     """
     *Cyclic redundancy checking* – Used to verify data as it is returned to the
     producer. The generation and verification of this number is tool-specific.

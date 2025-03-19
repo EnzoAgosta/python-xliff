@@ -1,66 +1,92 @@
 from collections.abc import Callable
 from enum import Enum
-from typing import TypeVar
+from typing import Literal, TypeVar, overload
 
 T = TypeVar("T", bound=Enum)
 
 
-def _try_convert_to_enum(value: str, enum: Callable[[str], T]) -> T | str:
-    """
-    Simple internal wrapper to try to convert a str to a member of an Enum.
-
-    If the value does not match any member of the Enum, it will be returned if
-    and only if it starts with "x-" else a ValueError will be raised.
-
-    Parameters
-    ----------
-    value : str
-        THe value to convert
-    enum : Callable[[str], T]
-        The Enum to try and convert the value to a member of
-
-    Returns
-    -------
-    T | str
-        the original str or a member of the Enum
-
-    Raises
-    ------
-    ValueError
-        If the value does not match any member of the Enum and does not start
-        with "x-"
-    """
-    try:
-        return enum(value)
-    except ValueError:
-        if not value.startswith("x-"):
-            raise ValueError("Custom values must start with 'x-'")
+@overload
+def _coerce_str_to_enum(
+    value: str | Enum | None,
+    enum: Callable[[str | Enum], T],
+    error_on_none: Literal[False],
+) -> T | str | None: ...
+@overload
+def _coerce_str_to_enum(
+    value: str | Enum | None,
+    enum: Callable[[str | Enum], T],
+    error_on_none: Literal[True],
+) -> T | str: ...
+@overload
+def _coerce_str_to_enum(
+    value: str | Enum | None,
+    enum: Callable[[str | Enum], T],
+    error_on_none: bool,
+) -> T | str | None: ...
+def _coerce_str_to_enum(
+    value: str | Enum | None,
+    enum: Callable[[str | Enum], T],
+    error_on_none: bool,
+) -> T | str | None:
+    if value is None:
+        if error_on_none:
+            raise TypeError("value cannot be None")
         return value
+    if isinstance(value, Enum):
+        return enum(value)
+    if isinstance(value, str):
+        if value.startswith("x-"):
+            return value
+        else:
+            return enum(value)
+    else:
+        raise TypeError(
+            f"value must be a string starting with 'x-' or a member of {enum.__name__}"
+        )
 
 
-def _try_convert_to_bool(value: str) -> bool:
-    """
-    Simple helper that return True if value is 'yes', False if it's 'no' or
-    raises a ValueError otherwise
-
-    Parameters
-    ----------
-    value : str
-        The value to try and convert
-
-    Returns
-    -------
-    bool
-        True if 'yes', False if 'no'
-
-    Raises
-    ------
-    ValueError
-        If value is not 'yes' or 'no'
-    """
+@overload
+def _coerce_str_to_bool(value: str | None, error_on_none: Literal[True]) -> bool: ...
+@overload
+def _coerce_str_to_bool(
+    value: str | None, error_on_none: Literal[False]
+) -> bool | None: ...
+@overload
+def _coerce_str_to_bool(value: str | None, error_on_none: bool) -> bool | None: ...
+def _coerce_str_to_bool(value: str | None, error_on_none: bool) -> bool | None:
+    if value is None:
+        if error_on_none:
+            raise TypeError("value cannot be None")
+        return value
     if value == "yes":
         return True
     elif value == "no":
         return False
     else:
         raise ValueError(f"value must be 'yes' or 'no' but got {value}")
+
+
+def _export_enum(value: str | Enum, enum: Callable[[str | Enum], T]) -> str:
+    if isinstance(value, str):
+        if value.startswith("x-"):
+            return value
+        else:
+            raise ValueError(f"value must start with 'x-' but got {value}")
+    elif isinstance(value, Enum):
+        return value.value
+    else:
+        raise TypeError(
+            f"value must be a string starting with 'x-' or a member of {enum.__name__}"
+        )
+
+
+@overload
+def _export_bool(value: Literal[True]) -> Literal["yes"]: ...
+@overload
+def _export_bool(value: Literal[False]) -> Literal["no"]: ...
+@overload
+def _export_bool(value: bool) -> Literal["yes", "no"]: ...
+def _export_bool(value: bool) -> Literal["yes", "no"]:
+    if not isinstance(value, bool):
+        raise TypeError("value must be a boolean")
+    return "yes" if value else "no"

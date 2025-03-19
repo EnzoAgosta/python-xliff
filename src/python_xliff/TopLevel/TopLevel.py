@@ -176,7 +176,7 @@ class InternalFile:
     """
     *Format* – Describes the type of format used.
     """
-    crc: float | None = field(default=None)
+    crc: str | None = field(default=None)
     """
     *Cyclic redundancy checking* – Used to verify data as it is returned to
     the producer.

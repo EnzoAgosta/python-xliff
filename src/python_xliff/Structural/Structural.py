@@ -261,7 +261,7 @@ class AltTrans:
     """
     *Tool identifier* – Used to refer to the given :class:`Tool` element.
     """
-    crc: float | None = field(default=None)
+    crc: str | None = field(default=None)
     """
     *Cyclic redundancy checking* – Used to verify data as it is returned to the
     producer. The generation and verification of this number is tool-specific.
