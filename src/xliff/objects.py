@@ -1,51 +1,106 @@
-from collections.abc import Generator, Iterable, MutableSequence
-from typing import ClassVar, Optional, overload
-from xml.dom import XML_NAMESPACE
-from xliff import __TEMP_ELEMENT__, ElementLike
-from xliff.utils import ensure_correct_element, ensure_usable_element
+from collections.abc import Callable, Generator, Iterable, Mapping, MutableSequence
+from typing import ClassVar, Optional, TypeVar, overload
+from xliff import __FAKE__ELEMENT__, ElementLike
+from xliff.utils import ensure_correct_element, ensure_usable_element, stringify
+import lxml.etree as let
+import xml.etree.ElementTree as pet
+
+T = TypeVar("T", bound=ElementLike)
 
 
-class BaseXliffElement:
+class ElementSerializationMixin:
+  @overload
+  def to_element(self, element_factory: Callable[[str, Mapping[str, str]], T]) -> T: ...
+  @overload
+  def to_element(self, element_factory: pet._ElementFactory) -> pet.Element: ...
+  @overload
+  def to_element(self, element_factory: None) -> let._Element: ...
+  def to_element(
+    self,
+    element_factory: Optional[
+      pet._ElementFactory | Callable[[str, Mapping[str, str]], T]
+    ] = None,
+  ) -> T | let._Element | pet.Element:
+    raise NotImplementedError
+
+
+class BaseXliffElement(ElementSerializationMixin):
   _xml_tag: ClassVar[str]
   _source_element: Optional[ElementLike]
   _required_attrs: tuple[str, ...]
-  __slots__ = ("_xml_tag", "_source_element", "_required_attrs")
+  _xml_attribute_map: ClassVar[dict[str, str]]
+  __slots__ = ("_xml_tag", "_source_element", "_required_attrs", "_xml_attribute_map")
 
   def __init__(self, **kwargs) -> None:
-    source_element = kwargs.pop("source_element", __TEMP_ELEMENT__)
+    # Check if we have a source xml element and ensure it's correct else use a temp
+    # element to not break anything
+    source_element = kwargs.pop("source_element", __FAKE__ELEMENT__)
     if not ensure_usable_element(source_element):
       raise TypeError(f"{source_element!r} is not a valid XML Element like object")
     ensure_correct_element(self._xml_tag, source_element)
-    for attribute in self.__slots__:
-      if attribute.startswith("_"):
-        continue
-      if attribute in kwargs:
-        self.__setattr__(attribute, kwargs[attribute])
-      if attribute in source_element.attrib:
-        self.__setattr__(attribute, source_element.attrib[attribute])
-      elif (o_attr := f"o-{attribute}") in source_element.attrib:
-        self.__setattr__(attribute, kwargs[o_attr])
-      elif (dash_attr := attribute.replace("_", "-")) in source_element.attrib:
-        self.__setattr__(attribute, source_element.attrib[dash_attr])
-      elif (xml_attr := f"{{{XML_NAMESPACE}}}{attribute}") in source_element.attrib:
-        self.__setattr__(attribute, source_element.attrib[xml_attr])
-      else:
-        if attribute in self._required_attrs:
-          raise ValueError(f"No value provided for required attr {attribute}")
-        self.__setattr__(attribute, None)
     self._source_element = (
-      source_element if source_element is not __TEMP_ELEMENT__ else None
+      None if source_element is __FAKE__ELEMENT__ else source_element
     )
+
+    # assign attribute values, prioritizing kwargs over the source_element
+    for attribute in self._xml_attribute_map:
+      if (value := kwargs.get(attribute)) is not None:  # Explicit value given
+        self.__setattr__(attribute, value)
+      elif (
+        value := self._xml_attribute_map[attribute]
+      ) in source_element.attrib:  # No explicit value, check the source element
+        self.__setattr__(attribute, value)
+      else:
+        self.__setattr__(attribute, None)  # not found anywhere, setting to None
+
+  @property
+  def _attribute_dict(self) -> dict[str, str]:
+    """
+    A dict representation of the object's attributes.
+
+    Only includes the attributes that should become xml attributes.
+
+    Returns:
+        dict[str, str]: A dict od the object's attributes, ready to be serialized.
+    """
+    return {
+      attribute: stringify(self.__getattribute__(attribute))
+      for attribute in self._xml_attribute_map
+      if self.__getattribute__(attribute) is not None
+    }
+
+  def _to_element(self, element_factory=None):
+    """
+    Serializes the object to an XML element using the provided factory.
+
+    By default, this uses `lxml.etree.Element`, but the caller may supply any callable
+    compatible with the signature `(tag: str, attrib: Mapping[str, str]) -> ElementLike`.
+
+    Args:
+        element_factory: A callable that returns an XML element object given a tag name
+        and a dictionary of attributes. Defaults to `lxml.etree.Element`.
+
+    Returns:
+        ElementLike: The resulting XML element, a `lxml.etree._Element`,
+        `xml.etree.ElementTree.Element` or any object adhering to the `ElementLikeProtocol`
+    """
+    element_factory_ = let.Element if element_factory is None else element_factory
+    return element_factory_(self._xml_tag, self._attribute_dict)
 
 
 class Count(BaseXliffElement):
   _xml_tag = "count"
+  _xml_attribute_map = {
+    "count_type": "count-type",
+    "phase_name": "phase-name",
+    "unit": "unit",
+  }
+  _required_attrs = ("value", "count_type")
+
   _value: int
   count_type: str
   phase_name: Optional[str]
   unit: Optional[str]
-
-  _required_attrs = ("value", "count_type")
 
   __slots__ = (
     "_value",
@@ -131,9 +186,18 @@ class Count(BaseXliffElement):
   def value(self, value: int) -> None:
     self._value = value
 
+  def to_element(self, element_factory):
+    element = super()._to_element(element_factory)
+    element.text = str(self.value)
+    return element
+
 
 class CountGroup(BaseXliffElement):
   _xml_tag = "count-group"
+  _xml_attribute_map = {
+    "name": "name",
+  }
+  _required_attrs = ("name",)
   name: str
   _counts: MutableSequence[Count]
 
@@ -215,3 +279,9 @@ class CountGroup(BaseXliffElement):
 
   def extend(self, counts: Iterable[Count]) -> None:
     self._counts.extend(counts)
+
+  def _to_element(self, element_factory):
+    element = super()._to_element(element_factory)
+    for count in self.counts:
+      element.append(count._to_element(element_factory))
+    return element
