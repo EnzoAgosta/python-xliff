@@ -139,7 +139,52 @@ class CountGroup(BaseXliffElement):
 
   __slots__ = ("name", "_counts")
 
+  @overload
+  def __init__(self, *, source_element: ElementLike) -> None: ...
+  @overload
+  def __init__(
+    self,
+    *,
+    source_element: ElementLike,
+    name: Optional[str] = None,
+    counts: Optional[MutableSequence[Count]] = None,
+  ) -> None: ...
+  @overload
+  def __init__(self, *, name: str, counts: MutableSequence[Count]) -> None: ...
   def __init__(self, **kwargs):
+    """
+    Represents an XLIFF <count-group> element used for grouping <count> metrics.
+
+    This class can be initialized in one of the following ways:
+    1. From an existing XML element:
+        ```python
+          CountGroup(source_element=element)
+        ```
+    2. From an XML element with optional overrides:
+        ```python
+          CountGroup(
+            source_element=element,
+            name="group1",
+            counts=[Count(...), Count(...)]
+          )
+        ```
+    3. Directly via explicit values (no XML element):
+        ```python
+          CountGroup(
+            name="group1",
+            counts=[Count(...), Count(...)]
+          )
+        ```
+        When initializing using explicit values only, `name` is required.
+
+    Attributes:
+        name (str): The name identifier of the count group.
+        counts (MutableSequence[Count]): A MutableSequence of `Count` objects contained within the group.
+
+    Raises:
+        TypeError: If `source_element` is not a valid XML element-like object.
+        ValueError: If required attributes are missing.
+    """
     super().__init__(**kwargs)
     if self.name is None:
       raise ValueError("No value provided for required attribute 'name'")
