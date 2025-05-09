@@ -1,6 +1,6 @@
 from collections.abc import Callable, Generator, Iterable, Mapping, MutableSequence
 from typing import ClassVar, Optional, TypeVar, overload
-from xliff import __FAKE__ELEMENT__, ElementLike
+from xliff import __FAKE__ELEMENT__, ElementLike, _ElementFactory
 from xliff.utils import ensure_correct_element, ensure_usable_element, stringify
 import lxml.etree as let
 import xml.etree.ElementTree as pet
@@ -12,13 +12,13 @@ class ElementSerializationMixin:
   @overload
   def to_element(self, element_factory: Callable[[str, Mapping[str, str]], T]) -> T: ...
   @overload
-  def to_element(self, element_factory: pet._ElementFactory) -> pet.Element: ...
+  def to_element(self, element_factory: _ElementFactory) -> pet.Element: ...
   @overload
   def to_element(self, element_factory: None) -> let._Element: ...
   def to_element(
     self,
     element_factory: Optional[
-      pet._ElementFactory | Callable[[str, Mapping[str, str]], T]
+      _ElementFactory | Callable[[str, Mapping[str, str]], T]
     ] = None,
   ) -> T | let._Element | pet.Element:
     raise NotImplementedError
@@ -43,12 +43,12 @@ class BaseXliffElement(ElementSerializationMixin):
     )
 
     # assign attribute values, prioritizing kwargs over the source_element
-    for attribute in self._xml_attribute_map:
+    for attribute, xml_name in self._xml_attribute_map.items():
       if (value := kwargs.get(attribute)) is not None:  # Explicit value given
         self.__setattr__(attribute, value)
       elif (
-        value := self._xml_attribute_map[attribute]
-      ) in source_element.attrib:  # No explicit value, check the source element
+        value := source_element.attrib.get(xml_name)
+      ) is not None:  # No explicit value, check the source element
         self.__setattr__(attribute, value)
       else:
         self.__setattr__(attribute, None)  # not found anywhere, setting to None
@@ -64,12 +64,12 @@ class BaseXliffElement(ElementSerializationMixin):
         dict[str, str]: A dict od the object's attributes, ready to be serialized.
     """
     return {
-      attribute: stringify(self.__getattribute__(attribute))
-      for attribute in self._xml_attribute_map
+      xml_name: stringify(self.__getattribute__(attribute))
+      for attribute, xml_name in self._xml_attribute_map.items()
       if self.__getattribute__(attribute) is not None
     }
 
-  def _to_element(self, element_factory=None):
+  def to_element(self, element_factory=None):
     """
     Serializes the object to an XML element using the provided factory.
 
@@ -187,7 +187,7 @@ class Count(BaseXliffElement):
     self._value = value
 
   def to_element(self, element_factory):
-    element = super()._to_element(element_factory)
+    element = super().to_element(element_factory)
     element.text = str(self.value)
     return element
 
@@ -280,8 +280,8 @@ class CountGroup(BaseXliffElement):
   def extend(self, counts: Iterable[Count]) -> None:
     self._counts.extend(counts)
 
-  def _to_element(self, element_factory):
-    element = super()._to_element(element_factory)
+  def to_element(self, element_factory):
+    element = super().to_element(element_factory)
     for count in self.counts:
-      element.append(count._to_element(element_factory))
+      element.append(count.to_element(element_factory))
     return element

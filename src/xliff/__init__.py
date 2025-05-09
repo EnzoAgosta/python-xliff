@@ -1,5 +1,5 @@
-from collections.abc import Mapping
-from typing import Optional, Protocol, Self
+from collections.abc import Callable, Mapping
+from typing import Any, Optional, Protocol, Self, TypeAlias
 import lxml.etree as et
 import xml.etree.ElementTree as ET
 
@@ -25,3 +25,4 @@ class ElementLikeProtocol(Protocol):
 
 
 type ElementLike = ElementLikeProtocol | et._Element | ET.Element
+_ElementFactory: TypeAlias = Callable[[Any, dict[Any, Any]], ET.Element]
