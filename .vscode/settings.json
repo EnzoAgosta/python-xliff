@@ -1,0 +1,6 @@
+{
+    "python.analysis.autoImportCompletions": true,
+    "editor.tabSize": 2,
+    "editor.inlineSuggest.enabled": false,
+    "editor.rulers": [88]
+}
