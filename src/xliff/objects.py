@@ -1,11 +1,10 @@
 from collections.abc import Callable, Generator, Iterable, Mapping, MutableSequence
-from typing import ClassVar, Optional, TypeVar, overload
+from typing import ClassVar, Optional, overload
 from xliff import __FAKE__ELEMENT__, ElementLike, _ElementFactory
+from xliff.constants import COUNT_TYPE, T, UNIT
 from xliff.utils import ensure_correct_element, ensure_usable_element, stringify
 import lxml.etree as let
 import xml.etree.ElementTree as pet
-
-T = TypeVar("T", bound=ElementLike)
 
 
 class ElementSerializationMixin:
@@ -98,9 +97,9 @@ class Count(BaseXliffElement):
   _required_attrs = ("value", "count_type")
 
   _value: int
-  count_type: str
+  count_type: COUNT_TYPE
   phase_name: Optional[str]
-  unit: Optional[str]
+  unit: Optional[UNIT]
 
   __slots__ = (
     "_value",
@@ -117,18 +116,18 @@ class Count(BaseXliffElement):
     *,
     source_element: ElementLike,
     value: Optional[int] = None,
-    count_type: Optional[str] = None,
+    count_type: Optional[COUNT_TYPE | str] = None,
     phase_name: Optional[str] = None,
-    unit: Optional[str] = None,
+    unit: Optional[UNIT | str] = None,
   ) -> None: ...
   @overload
   def __init__(
     self,
     *,
     value: int,
-    count_type: str,
+    count_type: COUNT_TYPE | str,
     phase_name: Optional[str] = None,
-    unit: Optional[str] = None,
+    unit: Optional[UNIT | str] = None,
   ) -> None: ...
   def __init__(self, **kwargs) -> None:
     """
@@ -177,6 +176,12 @@ class Count(BaseXliffElement):
       if self._source_element.text is None:
         raise ValueError("No value provided for required attribute 'value'")
       self.value = int(self._source_element.text)
+    if self.count_type is not None:
+      if not isinstance(self.count_type, COUNT_TYPE):
+        self.count_type = COUNT_TYPE(self.count_type)
+    if self.unit is not None:
+      if not isinstance(self.unit, UNIT):
+        self.unit = UNIT(self.unit)
 
   @property
   def value(self) -> int:
