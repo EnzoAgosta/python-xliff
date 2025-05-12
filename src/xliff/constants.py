@@ -1,6 +1,5 @@
 from enum import StrEnum
-from typing import TypeVar
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Generator, Mapping
 from typing import Any, Optional, Protocol, Self, TypeAlias
 import lxml.etree as et
 import xml.etree.ElementTree as ET
@@ -24,13 +23,12 @@ class ElementLikeProtocol(Protocol):
   attrib: Mapping[str, str]
 
   def append(self, other: Self) -> None: ...
+  def __len__(self) -> int: ...
+  def __iter__(self) -> Generator[Self, None, None]: ...
 
 
 type ElementLike = ElementLikeProtocol | et._Element | ET.Element
-_ElementFactory: TypeAlias = Callable[[Any, dict[Any, Any]], ET.Element]
-
-
-T = TypeVar("T", bound=ElementLike)
+Python_ElementFactory: TypeAlias = Callable[[Any, dict[Any, Any]], ET.Element]
 
 
 class COUNT_TYPE(StrEnum):

@@ -1,8 +1,16 @@
 from collections.abc import Callable, Generator, Iterable, Mapping, MutableSequence
 from types import NoneType
 from typing import ClassVar, Optional, overload, override
-from xliff import __FAKE__ELEMENT__, ElementLike, _ElementFactory
-from xliff.constants import CONTEXT_TYPE, COUNT_TYPE, PURPOSE, T, UNIT
+from xliff.constants import (
+  __FAKE__ELEMENT__,
+  ElementLike,
+  Python_ElementFactory,
+  ElementLikeProtocol,
+  CONTEXT_TYPE,
+  COUNT_TYPE,
+  PURPOSE,
+  UNIT,
+)
 from xliff.utils import (
   ensure_boolean,
   ensure_correct_element,
@@ -20,19 +28,28 @@ class ElementSerializationMixin:
   Lets us define the overloads once and not have to override them all the time.
   """
 
+  def _to_element(self, element_factory: Callable) -> ElementLike:
+    raise NotImplementedError
+
   @overload
-  def to_element(self, element_factory: Callable[[str, Mapping[str, str]], T]) -> T: ...
+  def to_element(
+    self, element_factory: Callable[[str, Mapping[str, str]], ElementLikeProtocol]
+  ) -> ElementLikeProtocol: ...
   @overload
-  def to_element(self, element_factory: _ElementFactory) -> pet.Element: ...
+  def to_element(self, element_factory: Python_ElementFactory) -> pet.Element: ...
   @overload
-  def to_element(self, element_factory: None) -> let._Element: ...
+  def to_element(self, element_factory: None = None) -> let._Element: ...
   def to_element(
     self,
     element_factory: Optional[
-      _ElementFactory | Callable[[str, Mapping[str, str]], T]
+      Python_ElementFactory | Callable[[str, Mapping[str, str]], ElementLikeProtocol]
     ] = None,
-  ) -> T | let._Element | pet.Element:
-    raise NotImplementedError
+  ) -> ElementLikeProtocol | let._Element | pet.Element:
+    if element_factory is None:
+      # Getting around BOTH lxml and ElementTree typing is a mega mess
+      # Just ignoring here until something breaks...
+      element_factory = let.Element  # type: ignore
+    return self._to_element(element_factory)  # type: ignore
 
 
 class BaseXliffElement(ElementSerializationMixin):
@@ -40,7 +57,13 @@ class BaseXliffElement(ElementSerializationMixin):
   _source_element: Optional[ElementLike]
   _required_attrs: tuple[str, ...]
   _xml_attribute_map: ClassVar[dict[str, str]]
-  __slots__ = ("_xml_tag", "_source_element", "_required_attrs", "_xml_attribute_map")
+  __slots__ = (
+    "_xml_tag",
+    "_source_element",
+    "_required_attrs",
+    "_xml_attribute_map",
+  )
+  _has_content: ClassVar[bool]
 
   def __init__(self, **kwargs) -> None:
     # Check if we have a source xml element and ensure it's correct else use a temp
@@ -52,17 +75,24 @@ class BaseXliffElement(ElementSerializationMixin):
     self._source_element = (
       None if source_element is __FAKE__ELEMENT__ else source_element
     )
+    if self.__class__._has_content:
+      self._init_content(**kwargs)
+    self._init_xml_attributes(source_element, **kwargs)
 
+  def _init_content(self, **kwargs) -> None:
+    raise NotImplementedError
+
+  def _init_xml_attributes(self, source_element: ElementLike, **kwargs) -> None:
     # assign attribute values, prioritizing kwargs over the source_element
     for attribute, xml_name in self._xml_attribute_map.items():
-      if (value := kwargs.get(attribute)) is not None:  # Explicit value given
-        self.__setattr__(attribute, value)
+      if attribute in kwargs:  # Explicit value given
+        setattr(self, attribute, kwargs[attribute])
       elif (
-        value := source_element.attrib.get(xml_name)
-      ) is not None:  # No explicit value, check the source element
-        self.__setattr__(attribute, value)
+        xml_name in source_element.attrib
+      ):  # No explicit value, check the source element
+        setattr(self, attribute, source_element.attrib[xml_name])
       else:
-        self.__setattr__(attribute, None)  # not found anywhere, setting to None
+        setattr(self, attribute, None)  # not found anywhere, setting to None
 
   @property
   def _attribute_dict(self) -> dict[str, str]:
@@ -75,12 +105,12 @@ class BaseXliffElement(ElementSerializationMixin):
         dict[str, str]: A dict od the object's attributes, ready to be serialized.
     """
     return {
-      xml_name: stringify(self.__getattribute__(attribute))
+      xml_name: stringify(getattr(self, attribute))
       for attribute, xml_name in self._xml_attribute_map.items()
-      if self.__getattribute__(attribute) is not None
+      if getattr(self, attribute) is not None
     }
 
-  def to_element(self, element_factory=None):
+  def _to_element(self, element_factory: Callable[..., ElementLike]) -> ElementLike:
     """
     Serializes the object to an XML element using the provided factory.
 
@@ -96,7 +126,7 @@ class BaseXliffElement(ElementSerializationMixin):
         `xml.etree.ElementTree.Element` or any object adhering to the `ElementLikeProtocol`
     """
     for attr in self._required_attrs:
-      if self.__getattribute__(attr) is None:
+      if getattr(self, attr) is None:
         raise AttributeError(f"Missing value for required attribute {attr}")
     element_factory_ = let.Element if element_factory is None else element_factory
     element = element_factory_(self._xml_tag, self._attribute_dict)
@@ -116,7 +146,7 @@ class Count(BaseXliffElement):
     "unit": "unit",
   }
   _required_attrs = ("value", "count_type")
-
+  _has_content = True
   _value: int
   count_type: COUNT_TYPE
   phase_name: Optional[str]
@@ -195,19 +225,21 @@ class Count(BaseXliffElement):
         ValueError: If required attributes are missing.
     """
     super().__init__(**kwargs)
-    if not hasattr(self, "_value"):
-      if "value" in kwargs:
-        self.value = kwargs["value"]
-      elif self._source_element is None or self._source_element.text is None:
-        raise ValueError("Missing a value for attribute 'value'")
-      else:
-        self.value = int(self._source_element.text)
     if self.count_type is None:
       raise ValueError("Missing a value for attribute 'count_type'")
     else:
       self.count_type = COUNT_TYPE(self.count_type)
     if self.unit is not None:
       self.unit = UNIT(self.unit)
+
+  @override
+  def _init_content(self, **kwargs):
+    if "value" in kwargs:
+      self.value = kwargs["value"]
+    elif self._source_element is None or self._source_element.text is None:
+      raise ValueError("Missing a value for attribute 'value'")
+    else:
+      self.value = int(self._source_element.text)
 
   @property
   def value(self) -> int:
@@ -223,12 +255,12 @@ class Count(BaseXliffElement):
       "value": (int,),
       "count_type": (COUNT_TYPE,),
       "unit": (UNIT, NoneType),
-      "phase-name": (str, NoneType),
+      "phase_name": (str, NoneType),
     }.items():
-      if not isinstance(self.__getattribute__(attr), expected_type):
+      if not isinstance(getattr(self, attr), expected_type):
         if raise_on_error:
           raise TypeError(
-            f"Expected a {expected_type} for attribute {attr} but got {type(self.__getattribute__(attr))!r}"
+            f"Expected a {expected_type} for attribute {attr} but got {type(getattr(self, attr))!r}"
           )
         return False
     return True
@@ -242,7 +274,7 @@ class CountGroup(BaseXliffElement):
   _required_attrs = ("name",)
   name: str
   _counts: MutableSequence[Count]
-
+  _has_content = True
   __slots__ = ("name", "_counts")
 
   @overload
@@ -296,15 +328,16 @@ class CountGroup(BaseXliffElement):
         ValueError: If required attributes are missing.
     """
     super().__init__(**kwargs)
-    if self.name is None:
+    if not isinstance(self.name, str):
       raise ValueError("No value provided for required attribute 'name'")
-    if not hasattr(self, "_counts"):
-      if "counts" in kwargs:
-        self.counts = kwargs["counts"]
-      elif self._source_element is None or not len(self._source_element):
-        self.counts = []
-      else:
-        self.counts = [Count(source_element=count) for count in self._source_element]
+
+  def _init_content(self, **kwargs):
+    if "counts" in kwargs:
+      self.counts = kwargs["counts"]
+    elif self._source_element is None or not len(self._source_element):
+      self.counts = []
+    else:
+      self.counts = [Count(source_element=count) for count in self._source_element]
 
   @property
   def counts(self) -> MutableSequence[Count]:
@@ -326,8 +359,8 @@ class CountGroup(BaseXliffElement):
   def extend(self, counts: Iterable[Count]) -> None:
     self._counts.extend(counts)
 
-  def to_element(self, element_factory):
-    element = super().to_element(element_factory)
+  def _to_element(self, element_factory):
+    element = super()._to_element(element_factory)
     for count in self.counts:
       element.append(count.to_element(element_factory))
     return element
@@ -361,6 +394,7 @@ class Context(BaseXliffElement):
     "match_mandatory",
     "crc",
   )
+  _has_content = True
   _value: str
   context_type: CONTEXT_TYPE
   match_mandatory: Optional[bool]
@@ -393,18 +427,19 @@ class Context(BaseXliffElement):
   ) -> None: ...
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
-    if not hasattr(self, "_value"):
-      if "value" in kwargs:
-        self.value = kwargs["value"]
-      elif self._source_element is None or self._source_element.text is None:
-        raise ValueError("Missing a value for attribute 'value'")
-      else:
-        self.value = self._source_element.text
     if self.context_type is None:
       raise ValueError("Missing a value for attribute 'context_type'")
     self.context_type = CONTEXT_TYPE(self.context_type)
     if self.match_mandatory is not None:
       self.match_mandatory = ensure_boolean(self.match_mandatory)
+
+  def _init_content(self, **kwargs):
+    if "value" in kwargs:
+      self.value = kwargs["value"]
+    elif self._source_element is None or self._source_element.text is None:
+      raise ValueError("Missing a value for attribute 'value'")
+    else:
+      self.value = self._source_element.text
 
   @property
   def value(self) -> str:
@@ -422,10 +457,10 @@ class Context(BaseXliffElement):
       "match_mandatory": (bool, NoneType),
       "crc": (str, NoneType),
     }.items():
-      if not isinstance(self.__getattribute__(attr), expected_type):
+      if not isinstance(getattr(self, attr), expected_type):
         if raise_on_error:
           raise TypeError(
-            f"Expected a {expected_type} for attribute {attr} but got {type(self.__getattribute__(attr))!r}"
+            f"Expected a {expected_type} for attribute {attr} but got {type(getattr(self, attr))!r}"
           )
         return False
     return True
@@ -438,6 +473,7 @@ class ContextGroup(BaseXliffElement):
     "name": "name",
     "purpose": "purpose",
   }
+  _has_content = True
   _required_attrs = tuple()
   __slots__ = ("crc", "name", "purpose", "_contexts")
   crc: Optional[str]
@@ -472,15 +508,16 @@ class ContextGroup(BaseXliffElement):
   ) -> None: ...
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
-    if not hasattr(self, "_contexts"):
-      if "contexts" in kwargs:
-        self.contexts = kwargs["contexts"]
-      elif self._source_element is None or not len(self._source_element):
-        self.contexts = []
-      else:
-        self.contexts = [
-          Context(source_element=context) for context in self._source_element
-        ]
+
+  def _init_content(self, **kwargs):
+    if "contexts" in kwargs:
+      self.contexts = kwargs["contexts"]
+    elif self._source_element is None or not len(self._source_element):
+      self.contexts = []
+    else:
+      self.contexts = [
+        Context(source_element=context) for context in self._source_element
+      ]
 
   @property
   def contexts(self) -> MutableSequence[Context]:
@@ -502,8 +539,8 @@ class ContextGroup(BaseXliffElement):
   def extend(self, context: Iterable[Context]) -> None:
     self._contexts.extend(context)
 
-  def to_element(self, element_factory):
-    element = super().to_element(element_factory)
+  def _to_element(self, element_factory=None):
+    element = super()._to_element(element_factory)
     for context in self._contexts:
       element.append(context.to_element(element_factory))
     return element
@@ -514,10 +551,10 @@ class ContextGroup(BaseXliffElement):
       "crc": (str, NoneType),
       "purpose": (PURPOSE, NoneType),
     }.items():
-      if not isinstance(self.__getattribute__(attr), expected_type):
+      if not isinstance(getattr(self, attr), expected_type):
         if raise_on_error:
           raise TypeError(
-            f"Expected a {expected_type} for attribute {attr} but got {type(self.__getattribute__(attr))!r}"
+            f"Expected a {expected_type} for attribute {attr} but got {type(getattr(self, attr))!r}"
           )
         return False
     if recurse:

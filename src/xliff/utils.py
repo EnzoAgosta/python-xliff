@@ -3,8 +3,7 @@ from enum import StrEnum
 from typing import Any, TypeIs
 from xml.etree.ElementTree import Element
 from lxml.etree import _Element
-from xliff import __FAKE__ELEMENT__
-from xliff import ElementLikeProtocol
+from xliff.constants import __FAKE__ELEMENT__, ElementLikeProtocol
 
 
 def ensure_correct_element(expected_tag: str, element: Any) -> None:
@@ -70,7 +69,7 @@ def stringify(value: Any) -> str:
     case StrEnum():
       return value.value
     case bool():
-      return "yes" if value else "no"
+      return "yes" if value is True else "no"
     case _:
       raise NotImplementedError
 
