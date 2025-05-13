@@ -1,4 +1,6 @@
 from collections.abc import Callable, Mapping, MutableSequence
+from dataclasses import dataclass
+from enum import Enum
 from typing import ClassVar, Optional, overload, override
 from xliff.constants import (
   __FAKE__ELEMENT__,
@@ -19,7 +21,6 @@ from xliff.helpers import (
 )
 import lxml.etree as let
 import xml.etree.ElementTree as pet
-
 
 class ElementSerializationMixin:
   """
@@ -66,7 +67,6 @@ class ElementSerializationMixin:
       # Just ignoring here until something breaks...
       element_factory = let.Element  # type: ignore
     return self._to_element(element_factory)  # type: ignore
-
 
 class BaseXliffElement(ElementSerializationMixin):
   _xml_tag: ClassVar[str]
@@ -233,7 +233,7 @@ class Count(BaseXliffElement):
     return element
 
   @override
-  def validate(self, *, raise_on_error: bool = True) -> bool:
+  def validate(self, *, raise_on_error: bool = True) -> bool: 
     # required
     if not isinstance(self.value, int):
       if raise_on_error:
