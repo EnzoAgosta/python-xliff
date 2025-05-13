@@ -1,5 +1,4 @@
-from collections.abc import Callable, Generator, Iterable, Mapping, MutableSequence
-from types import NoneType
+from collections.abc import Callable, Mapping, MutableSequence
 from typing import ClassVar, Optional, overload, override
 from xliff.constants import (
   __FAKE__ELEMENT__,
@@ -12,7 +11,8 @@ from xliff.constants import (
   UNIT,
 )
 from xliff.utils import (
-  ensure_boolean,
+  convert_to_boolean,
+  ensure_enum,
   ensure_correct_element,
   ensure_usable_element,
   stringify,
@@ -45,6 +45,22 @@ class ElementSerializationMixin:
       Python_ElementFactory | Callable[[str, Mapping[str, str]], ElementLikeProtocol]
     ] = None,
   ) -> ElementLikeProtocol | let._Element | pet.Element:
+    """
+    Serializes the object to an XML element using the provided factory.
+
+    By default, this uses `lxml.etree.Element`, but you may supply either the Standard
+    library's `Element` function, or any function that can return an object that follows
+    the `ElementLikeProtocol` from a str (the element's tag) and a dict[str, str] (the
+    element's attrib).
+
+    Args:
+        element_factory: A callable that returns an XML element object given a tag name
+        and a dictionary of attributes. Defaults to `lxml.etree.Element`.
+
+    Returns:
+        ElementLike: The resulting XML element, a `lxml.etree._Element`,
+        `xml.etree.ElementTree.Element` or any object adhering to the `ElementLikeProtocol`
+    """
     if element_factory is None:
       # Getting around BOTH lxml and ElementTree typing is a mega mess
       # Just ignoring here until something breaks...
@@ -54,16 +70,10 @@ class ElementSerializationMixin:
 
 class BaseXliffElement(ElementSerializationMixin):
   _xml_tag: ClassVar[str]
-  _source_element: Optional[ElementLike]
-  _required_attrs: tuple[str, ...]
   _xml_attribute_map: ClassVar[dict[str, str]]
-  __slots__ = (
-    "_xml_tag",
-    "_source_element",
-    "_required_attrs",
-    "_xml_attribute_map",
-  )
   _has_content: ClassVar[bool]
+  _source_element: Optional[ElementLike]
+  __slots__ = ("_source_element",)
 
   def __init__(self, **kwargs) -> None:
     # Check if we have a source xml element and ensure it's correct else use a temp
@@ -102,7 +112,8 @@ class BaseXliffElement(ElementSerializationMixin):
     Only includes the attributes that should become xml attributes.
 
     Returns:
-        dict[str, str]: A dict od the object's attributes, ready to be serialized.
+        dict: A dict of all the object's attributes that should be attributes in its
+        xml representation, ready for serialization.
     """
     return {
       xml_name: stringify(getattr(self, attribute))
@@ -111,49 +122,49 @@ class BaseXliffElement(ElementSerializationMixin):
     }
 
   def _to_element(self, element_factory: Callable[..., ElementLike]) -> ElementLike:
-    """
-    Serializes the object to an XML element using the provided factory.
-
-    By default, this uses `lxml.etree.Element`, but the caller may supply any callable
-    compatible with the signature `(tag: str, attrib: Mapping[str, str]) -> ElementLike`.
-
-    Args:
-        element_factory: A callable that returns an XML element object given a tag name
-        and a dictionary of attributes. Defaults to `lxml.etree.Element`.
-
-    Returns:
-        ElementLike: The resulting XML element, a `lxml.etree._Element`,
-        `xml.etree.ElementTree.Element` or any object adhering to the `ElementLikeProtocol`
-    """
-    for attr in self._required_attrs:
-      if getattr(self, attr) is None:
-        raise AttributeError(f"Missing value for required attribute {attr}")
     element_factory_ = let.Element if element_factory is None else element_factory
     element = element_factory_(self._xml_tag, self._attribute_dict)
-    if hasattr(self, "value"):
-      element.text = stringify(self.value)
     return element
 
-  def validate(self, *, raise_on_error: bool = True) -> bool | None:
+  def validate(self, *, raise_on_error: bool = True) -> bool:
+    """
+    Validates that all the the attributes of the objects are of an expected type.
+
+    The optional `raise_on_error` argument can be used to simply return False instead
+    of raising.
+
+    In some implementations, the `recurse`flag can also be set to recursively validate
+    all the object's children as well.
+
+    Args:
+        raise_on_error (bool, optional): If the function should raise a TypeError or simply return False. Defaults to True.
+        recurse (bool, optional): If the object's children should also be validated. Defaults to True.
+
+    Raises:
+        TypeError: If one of the object's attribute is not one of its expected type.
+
+    Returns:
+        bool: True if the object is valid and ready for serialization or False if
+        `raise_on_error` is False and the object is incorrect.
+    """
     raise NotImplementedError
 
 
 class Count(BaseXliffElement):
+  _has_content = True
   _xml_tag = "count"
   _xml_attribute_map = {
     "count_type": "count-type",
     "phase_name": "phase-name",
     "unit": "unit",
   }
-  _required_attrs = ("value", "count_type")
-  _has_content = True
   _value: int
-  count_type: COUNT_TYPE
+  count_type: str | COUNT_TYPE
   phase_name: Optional[str]
-  unit: Optional[UNIT]
+  unit: Optional[str | UNIT]
 
   __slots__ = (
-    "_value",
+    "value",
     "count_type",
     "phase_name",
     "unit",
@@ -185,52 +196,27 @@ class Count(BaseXliffElement):
     unit: Optional[UNIT | str] = None,
   ) -> None: ...
   def __init__(self, **kwargs) -> None:
-    """
-    Represents an XLIFF <count> element used for count metrics.
+    """Represents an XLIFF `<count>` element used for count metrics.
 
-    This class can be initialized in one of the following ways:
-    1. From an existing XML element:
-        ```python
-          Count(source_element=element)
-        ```
-    2. From an XML element with optional overrides:
-        ```python
-          Count(
-            source_element=element,
-            value=123,
-            count_type="word",
-            phase_name="translation",
-            unit="word",
-          )
-        ```
-    3. Directly via explicit values (no XML element):
-        ```python
-          Count(
-            value=123,
-            count_type="word",
-            phase_name="translation",
-            unit="word",
-          )
-        ```
-        When initilizing using explicit values only, both `value` AND `count_type` are required.
+    When initilizing using explicit values only, both `value` AND `count_type` are required.
 
-    Attributes:
-        value (int): The numeric value associated with the count element.
-        count_type (str): Type of count (e.g., 'word', 'character').
-        phase_name (Optional[str]): Optional phase name referencing the `Phase` in which the count was produced.
-        unit (Optional[str]): Optional unit for the count (e.g., 'word', 'segment').
+    Args:
+      source_element (Optional[ElementLike]): An optional xml Element to parse all values from value (int): The numeric value associated with the count element.
+      count_type (str | COUNT_TYPE): Type of count (e.g., 'word', 'character'). Ideally one of the `COUNT_TYPE` StrEnum. If using a custom value as a str, please ensure it is preppended with 'x-'
+      phase_name (Optional[str]): Optional phase name referencing the `Phase` in which the count was produced.
+      unit (Optional[str | UNIT]): Optional unit for the count (e.g., 'word', 'segment'). Ideally one of the `UNIT` StrEnum. If using a custom value as a str, please ensure it is preppended with 'x-'
 
     Raises:
-        TypeError: If `source_element` is not a valid XML element-like object.
-        ValueError: If required attributes are missing.
+      TypeError: If `source_element` is not a valid XML element-like object, or one of the attibute is not the correct type.
+      ValueError: If required attributes are missing or the tag of the element is incorrect.
     """
     super().__init__(**kwargs)
     if self.count_type is None:
       raise ValueError("Missing a value for attribute 'count_type'")
     else:
-      self.count_type = COUNT_TYPE(self.count_type)
+      self.count_type = ensure_enum(self.count_type, COUNT_TYPE)
     if self.unit is not None:
-      self.unit = UNIT(self.unit)
+      self.unit = ensure_enum(self.unit, UNIT)
 
   @override
   def _init_content(self, **kwargs):
@@ -241,28 +227,43 @@ class Count(BaseXliffElement):
     else:
       self.value = int(self._source_element.text)
 
-  @property
-  def value(self) -> int:
-    return self._value
-
-  @value.setter
-  def value(self, value: int) -> None:
-    self._value = value
+  def _to_element(self, element_factory):
+    element = super()._to_element(element_factory)
+    element.text = stringify(self.value)
+    return element
 
   @override
   def validate(self, *, raise_on_error: bool = True) -> bool:
-    for attr, expected_type in {
-      "value": (int,),
-      "count_type": (COUNT_TYPE,),
-      "unit": (UNIT, NoneType),
-      "phase_name": (str, NoneType),
-    }.items():
-      if not isinstance(getattr(self, attr), expected_type):
+    # required
+    if not isinstance(self.value, int):
+      if raise_on_error:
+        raise TypeError(f"Expected a int for 'value' but got {type(self.value)}")
+      return False
+    # enums
+    try:
+      ensure_enum(self.count_type, COUNT_TYPE)
+    except (TypeError, ValueError) as e:
+      if raise_on_error:
+        raise TypeError(
+          f"Expected a COUNT_TYPE or str starting with 'x-' for 'count_type' but got {type(self.value)}"
+        ) from e
+      return False
+    if self.unit is not None:
+      try:
+        ensure_enum(self.unit, UNIT)
+      except (TypeError, ValueError) as e:
         if raise_on_error:
           raise TypeError(
-            f"Expected a {expected_type} for attribute {attr} but got {type(getattr(self, attr))!r}"
-          )
+            f"Expected a UNIT or str starting with 'x-' for 'unit' but got {type(self.unit)}"
+          ) from e
         return False
+    # optional
+    if self.phase_name is not None and not isinstance(self.phase_name, str):
+      if raise_on_error:
+        raise TypeError(
+          f"Expected a str or None for 'phase_name' but got {type(self.phase_name)}"
+        )
+      return False
     return True
 
 
@@ -271,11 +272,10 @@ class CountGroup(BaseXliffElement):
   _xml_attribute_map = {
     "name": "name",
   }
-  _required_attrs = ("name",)
-  name: str
-  _counts: MutableSequence[Count]
   _has_content = True
-  __slots__ = ("name", "_counts")
+  __slots__ = ("name", "counts")
+  name: str
+  counts: MutableSequence[Count]
 
   @overload
   def __init__(
@@ -295,37 +295,18 @@ class CountGroup(BaseXliffElement):
   def __init__(self, *, name: str, counts: MutableSequence[Count]) -> None: ...
   def __init__(self, **kwargs):
     """
-    Represents an XLIFF <count-group> element used for grouping <count> metrics.
+    Represents an XLIFF `<count-group>` element used for grouping <count> metrics.
 
-    This class can be initialized in one of the following ways:
-    1. From an existing XML element:
-        ```python
-          CountGroup(source_element=element)
-        ```
-    2. From an XML element with optional overrides:
-        ```python
-          CountGroup(
-            source_element=element,
-            name="group1",
-            counts=[Count(...), Count(...)]
-          )
-        ```
-    3. Directly via explicit values (no XML element):
-        ```python
-          CountGroup(
-            name="group1",
-            counts=[Count(...), Count(...)]
-          )
-        ```
-        When initializing using explicit values only, `name` is required.
+    When initializing using explicit values only, `name` is required.
 
-    Attributes:
-        name (str): The name identifier of the count group.
-        counts (MutableSequence[Count]): A MutableSequence of `Count` objects contained within the group.
+    Args:
+      source_element (Optional[ElementLike]): An optional xml Element to parse all values from
+      name (str): The name identifier of the count group.
+      counts (MutableSequence[Count]): A MutableSequence of `Count` objects contained within the group.
 
     Raises:
-        TypeError: If `source_element` is not a valid XML element-like object.
-        ValueError: If required attributes are missing.
+      TypeError: If `source_element` is not a valid XML element-like object.
+      ValueError: If required attributes are missing.
     """
     super().__init__(**kwargs)
     if not isinstance(self.name, str):
@@ -339,26 +320,6 @@ class CountGroup(BaseXliffElement):
     else:
       self.counts = [Count(source_element=count) for count in self._source_element]
 
-  @property
-  def counts(self) -> MutableSequence[Count]:
-    return self._counts
-
-  @counts.setter
-  def counts(self, value: MutableSequence[Count]) -> None:
-    self._counts = value
-
-  def __iter__(self) -> Generator[Count]:
-    yield from self._counts
-
-  def __len__(self) -> int:
-    return len(self._counts)
-
-  def append(self, count: Count) -> None:
-    self._counts.append(count)
-
-  def extend(self, counts: Iterable[Count]) -> None:
-    self._counts.extend(counts)
-
   def _to_element(self, element_factory):
     element = super()._to_element(element_factory)
     for count in self.counts:
@@ -367,15 +328,24 @@ class CountGroup(BaseXliffElement):
 
   @override
   def validate(self, *, recurse: bool = False, raise_on_error: bool = True) -> bool:
+    # required
     if not isinstance(self.name, str):
       if raise_on_error:
-        raise TypeError(
-          f"Expected a str for attribute name but got {type(self.name)!r}"
-        )
+        raise TypeError(f"Expected a str for 'name' but got {type(self.name)}")
       return False
+    # recurse
     if recurse:
       for count in self.counts:
-        if not count.validate(raise_on_error=raise_on_error):
+        try:
+          if not isinstance(count, Count) or not count.validate(
+            raise_on_error=raise_on_error
+          ):
+            return False
+        except TypeError as e:
+          if raise_on_error:
+            raise TypeError(
+              f"Expected an Iterable of `Count` for 'counts' but got {type(count)}"
+            ) from e
           return False
     return True
 
@@ -387,15 +357,14 @@ class Context(BaseXliffElement):
     "match_mandatory": "match-mandatory",
     "crc": "crc",
   }
-  _required_attrs = ("context_type", "value")
+  _has_content = True
   __slots__ = (
-    "_value",
+    "value",
     "context_type",
     "match_mandatory",
     "crc",
   )
-  _has_content = True
-  _value: str
+  value: str
   context_type: CONTEXT_TYPE
   match_mandatory: Optional[bool]
   crc: str
@@ -426,12 +395,28 @@ class Context(BaseXliffElement):
     crc: Optional[str] = None,
   ) -> None: ...
   def __init__(self, **kwargs):
+    """
+    Represents an XLIFF `<context>` element used to define contextual information.
+
+    When initializing using explicit values only, both `value` AND `context_type` are required.
+
+    Args:
+      source_element (Optional[ElementLike]): An optional xml Element to parse all values from.
+      value (str): The textual content of the context.
+      context_type (CONTEXT_TYPE): Type of context (e.g., 'segment', 'location'). Ideally one of the `CONTEXT_TYPE` StrEnum. If using a custom value as a str, please ensure it is preppended with 'x-'
+      match_mandatory (Optional[bool]): If the context match is mandatory.
+      crc (Optional[str]): Optional checksum for context identification.
+
+    Raises:
+      TypeError: If `source_element` is not a valid XML element-like object, or one of the attributes is not the correct type.
+      ValueError: If required attributes are missing or the tag of the element is incorrect.
+    """
     super().__init__(**kwargs)
     if self.context_type is None:
       raise ValueError("Missing a value for attribute 'context_type'")
-    self.context_type = CONTEXT_TYPE(self.context_type)
+    self.context_type = ensure_enum(self.context_type, CONTEXT_TYPE)
     if self.match_mandatory is not None:
-      self.match_mandatory = ensure_boolean(self.match_mandatory)
+      self.match_mandatory = convert_to_boolean(self.match_mandatory)
 
   def _init_content(self, **kwargs):
     if "value" in kwargs:
@@ -441,28 +426,40 @@ class Context(BaseXliffElement):
     else:
       self.value = self._source_element.text
 
-  @property
-  def value(self) -> str:
-    return self._value
-
-  @value.setter
-  def value(self, value: str) -> None:
-    self._value = value
+  def _to_element(self, element_factory):
+    element = super()._to_element(element_factory)
+    element.text = self.value
+    return element
 
   @override
   def validate(self, *, raise_on_error: bool = True) -> bool:
-    for attr, expected_type in {
-      "value": (str,),
-      "context_type": (CONTEXT_TYPE,),
-      "match_mandatory": (bool, NoneType),
-      "crc": (str, NoneType),
-    }.items():
-      if not isinstance(getattr(self, attr), expected_type):
-        if raise_on_error:
-          raise TypeError(
-            f"Expected a {expected_type} for attribute {attr} but got {type(getattr(self, attr))!r}"
-          )
-        return False
+    # required
+    if not isinstance(self.value, str):
+      if raise_on_error:
+        raise TypeError(f"Expected a str for 'value' but got {type(self.value)}")
+      return False
+
+    # enums
+    try:
+      ensure_enum(self.context_type, CONTEXT_TYPE)
+    except (TypeError, ValueError) as e:
+      if raise_on_error:
+        raise TypeError(
+          f"Expected a `CONTEXT_TYPE` or str starting with 'x-' for 'context_type' but got {type(self.context_type)}"
+        ) from e
+      return False
+
+    # optional
+    if self.crc is not None and not isinstance(self.crc, str):
+      if raise_on_error:
+        raise TypeError(f"Expected a str or None for 'crc' but got {type(self.crc)}")
+      return False
+    if self.match_mandatory not in (None, True, False):
+      if raise_on_error:
+        raise TypeError(
+          f"Expected a bool or None for 'match_mandatory' but got {type(self.match_mandatory)}"
+        )
+      return False
     return True
 
 
@@ -474,12 +471,11 @@ class ContextGroup(BaseXliffElement):
     "purpose": "purpose",
   }
   _has_content = True
-  _required_attrs = tuple()
-  __slots__ = ("crc", "name", "purpose", "_contexts")
+  __slots__ = ("crc", "name", "purpose", "contexts")
   crc: Optional[str]
   name: Optional[str]
   purpose: Optional[PURPOSE]
-  _contexts: MutableSequence[Context]
+  contexts: MutableSequence[Context]
 
   @overload
   def __init__(
@@ -507,7 +503,26 @@ class ContextGroup(BaseXliffElement):
     contexts: Optional[MutableSequence[Context]] = None,
   ) -> None: ...
   def __init__(self, **kwargs):
+    """
+    Represents an XLIFF `<context-group>` element used for grouping <context> elements.
+
+    All attributes are optional.
+
+    Args:
+      source_element (Optional[ElementLike]): An optional xml Element to parse all values from.
+      name (Optional[str]): Optional name for the context group.
+      purpose (Optional[str | PURPOSE]): Optional purpose of the context group. Ideally one of the `PURPOSE` StrEnum. If using a custom value as a str, please ensure it is preppended with 'x-'
+      crc (Optional[str]): Optional checksum for the context group.
+      contexts (MutableSequence[Context]): A MutableSequence of `Context` objects contained within the group. Defaults to an empty list.
+
+    Raises:
+      TypeError: If `source_element` is not a valid XML element-like object, or one of the attributes is not the correct type.
+      ValueError: If required attributes are missing or the tag of the element is incorrect.
+    """
+
     super().__init__(**kwargs)
+    if self.purpose is not None:
+      self.purpose = ensure_enum(self.purpose, PURPOSE)
 
   def _init_content(self, **kwargs):
     if "contexts" in kwargs:
@@ -519,46 +534,44 @@ class ContextGroup(BaseXliffElement):
         Context(source_element=context) for context in self._source_element
       ]
 
-  @property
-  def contexts(self) -> MutableSequence[Context]:
-    return self._contexts
-
-  @contexts.setter
-  def contexts(self, value: MutableSequence[Context]) -> None:
-    self._contexts = value
-
-  def __iter__(self) -> Generator[Context]:
-    yield from self._contexts
-
-  def __len__(self) -> int:
-    return len(self._contexts)
-
-  def append(self, context: Context) -> None:
-    self._contexts.append(context)
-
-  def extend(self, context: Iterable[Context]) -> None:
-    self._contexts.extend(context)
-
   def _to_element(self, element_factory=None):
     element = super()._to_element(element_factory)
-    for context in self._contexts:
+    for context in self.contexts:
       element.append(context.to_element(element_factory))
     return element
 
   def validate(self, *, recurse: bool = False, raise_on_error: bool = True) -> bool:
-    for attr, expected_type in {
-      "name": (str, NoneType),
-      "crc": (str, NoneType),
-      "purpose": (PURPOSE, NoneType),
-    }.items():
-      if not isinstance(getattr(self, attr), expected_type):
+    # Optional
+    if self.name is not None and not isinstance(self.name, str):
+      if raise_on_error:
+        raise TypeError(f"Expected a str or None for 'name' but got {type(self.name)}")
+      return False
+    if self.crc is not None and not isinstance(self.crc, str):
+      if raise_on_error:
+        raise TypeError(f"Expected a str or None for 'crc' but got {type(self.crc)}")
+      return False
+    # enums
+    if self.purpose is not None:
+      try:
+        ensure_enum(self.purpose, PURPOSE)
+      except (TypeError, ValueError) as e:
         if raise_on_error:
           raise TypeError(
-            f"Expected a {expected_type} for attribute {attr} but got {type(getattr(self, attr))!r}"
-          )
+            f"Expected a `PURPOSE` or str starting with 'x-' for 'purpose' but got {type(self.purpose)}"
+          ) from e
         return False
+    # recurse
     if recurse:
       for context in self.contexts:
-        if not context.validate(raise_on_error=raise_on_error):
+        try:
+          if not isinstance(context, Context) or not context.validate(
+            raise_on_error=raise_on_error
+          ):
+            return False
+        except TypeError as e:
+          if raise_on_error:
+            raise TypeError(
+              f"Expected an Iterable of `Context` for 'contexts' but got {type(context)}"
+            ) from e
           return False
     return True

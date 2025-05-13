@@ -10,7 +10,7 @@ class TestCountGroup(unittest.TestCase):
     group = CountGroup(name="metrics", counts=[count1, count2])
 
     self.assertEqual(group.name, "metrics")
-    self.assertEqual(len(group), 2)
+    self.assertEqual(len(group.counts), 2)
     self.assertIsInstance(group.counts[0], Count)
     self.assertEqual(group.counts[1].value, 10)
 
@@ -22,7 +22,7 @@ class TestCountGroup(unittest.TestCase):
     parsed = CountGroup(source_element=xml_element)
 
     self.assertEqual(parsed.name, "summary")
-    self.assertEqual(len(parsed), 2)
+    self.assertEqual(len(parsed.counts), 2)
     self.assertEqual(parsed.counts[0].value, 3)
     self.assertEqual(parsed.counts[1].count_type, COUNT_TYPE.TOTAL)
 

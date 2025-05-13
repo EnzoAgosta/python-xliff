@@ -1,4 +1,4 @@
-from enum import StrEnum
+from enum import Enum
 from collections.abc import Callable, Generator, Mapping
 from typing import Any, Optional, Protocol, Self, TypeAlias
 import lxml.etree as et
@@ -31,7 +31,7 @@ type ElementLike = ElementLikeProtocol | et._Element | ET.Element
 Python_ElementFactory: TypeAlias = Callable[[Any, dict[Any, Any]], ET.Element]
 
 
-class COUNT_TYPE(StrEnum):
+class COUNT_TYPE(Enum):
   NUM_USAGE = "num-usage"
   """
   Indicates the count units are items that are used X times in a certain context
@@ -46,7 +46,7 @@ class COUNT_TYPE(StrEnum):
   """
 
 
-class UNIT(StrEnum):
+class UNIT(Enum):
   WORD = "word"
   """
   Refers to words.
@@ -101,7 +101,7 @@ class UNIT(StrEnum):
   """
 
 
-class CONTEXT_TYPE(StrEnum):
+class CONTEXT_TYPE(Enum):
   DATABASE = "database"
   """
   Indicates a database content.
@@ -143,7 +143,7 @@ class CONTEXT_TYPE(StrEnum):
   """
 
 
-class PURPOSE(StrEnum):
+class PURPOSE(Enum):
   INFORMATION = "information"
   """
   Indicates that the context is informational in nature, specifying for example, how a

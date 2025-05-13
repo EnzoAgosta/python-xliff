@@ -1,6 +1,6 @@
 from datetime import datetime
-from enum import StrEnum
-from typing import Any, TypeIs
+from enum import Enum
+from typing import Any, TypeIs, TypeVar, overload
 from xml.etree.ElementTree import Element
 from lxml.etree import _Element
 from xliff.constants import __FAKE__ELEMENT__, ElementLikeProtocol
@@ -50,7 +50,7 @@ def stringify(value: Any) -> str:
   """
   Converts a Python value into a string suitable for XML serialization.
 
-  Supported types include: str, int, float, datetime, StrEnum, and bool.
+  Supported types include: str, int, float, datetime, Enum, and bool.
 
   Args:
       value (Any): The value to convert.
@@ -66,7 +66,7 @@ def stringify(value: Any) -> str:
       return str(value)
     case datetime():
       return value.strftime("%Y%m%dT%H%M%SZ")
-    case StrEnum():
+    case Enum():
       return value.value
     case bool():
       return "yes" if value is True else "no"
@@ -74,7 +74,7 @@ def stringify(value: Any) -> str:
       raise NotImplementedError
 
 
-def ensure_boolean(value: Any) -> bool:
+def convert_to_boolean(value: Any) -> bool:
   """
   Converts a string to a boolean value, returns the value if already a boolean.
 
@@ -96,3 +96,36 @@ def ensure_boolean(value: Any) -> bool:
       return False
     case _:
       raise TypeError(f"expected a bool or one of 'yes' or 'no' but got {value!r}")
+
+
+T = TypeVar("T", bound=Enum)
+
+
+@overload
+def ensure_enum(value: T, enum: type[T]) -> T: ...
+@overload
+def ensure_enum(value: str | T, enum: type[T]) -> str | T: ...
+def ensure_enum(value: str | T, enum: type[T]) -> str | T:
+  """
+  Converts `value` to a member of `enum` if possible or returns it as-is if it is a
+  `str` starting with 'x-'
+
+  Args:
+    value (Any): the value to check
+    enum (T): The enum to convert to
+
+  Returns:
+    T | str: A member of the Enum or the string it if it starts with 'x-'
+
+  Raises:
+    TypeError: If `value` is not a str
+    ValueError: If `value` cannot be converted to a member of the Enum and it doesn't starts with 'x-'
+  """
+  if isinstance(value, enum):
+    return value
+  elif isinstance(value, str):
+    if value.startswith("x-"):
+      return value
+    return enum(value)
+  else:
+    raise TypeError(f"expected a string or a member of {enum} but got {type(value)}")

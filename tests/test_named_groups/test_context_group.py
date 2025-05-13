@@ -15,7 +15,7 @@ class TestContextGroup(unittest.TestCase):
 
     self.assertEqual(group.name, "main")
     self.assertEqual(group.purpose, PURPOSE.LOCATION)
-    self.assertEqual(len(group), 2)
+    self.assertEqual(len(group.contexts), 2)
     self.assertEqual(group.contexts[1].value, "World")
 
   def test_to_element_round_trip(self) -> None:
@@ -31,7 +31,7 @@ class TestContextGroup(unittest.TestCase):
     parsed = ContextGroup(source_element=element)
     self.assertEqual(parsed.name, "meta")
     self.assertEqual(parsed.purpose, PURPOSE.LOCATION)
-    self.assertEqual(len(parsed), 2)
+    self.assertEqual(len(parsed.contexts), 2)
     self.assertEqual(parsed.contexts[0].context_type, CONTEXT_TYPE.SOURCEFILE)
 
   def test_validate_success(self) -> None:
@@ -47,8 +47,8 @@ class TestContextGroup(unittest.TestCase):
 
 class TestContextGroupMalformedData(unittest.TestCase):
   def test_invalid_purpose_raises(self) -> None:
-    with self.assertRaises(TypeError):
-      ContextGroup(purpose="not-a-purpose").validate()  # type: ignore
+    with self.assertRaises(ValueError):
+      ContextGroup(purpose="not-a-purpose").validate()
 
   def test_invalid_context_in_recurse(self) -> None:
     good = Context(value="Good", context_type="sourcefile")
