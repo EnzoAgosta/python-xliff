@@ -129,3 +129,48 @@ def ensure_enum(value: str | T, enum: type[T]) -> str | T:
     return enum(value)
   else:
     raise TypeError(f"expected a string or a member of {enum} but got {type(value)}")
+
+
+def validate_type(
+  value: Any,
+  expected_type: type | tuple[type, ...],
+  name: str,
+  nullable: bool = False,
+  raise_on_error: bool = True,
+) -> bool:
+  """Generic type validator with standardized error messages."""
+  if value is None:
+    if not nullable:
+      raise TypeError(f"Required attribute '{name}' cannot be None")
+  if not isinstance(value, expected_type):
+    if raise_on_error:
+      type_name = getattr(expected_type, "__name__", str(expected_type))
+      raise TypeError(f"Expected {type_name} for '{name}' but got {type(value)}")
+    return False
+  return True
+
+
+def validate_enum(
+  value: Any,
+  enum_class: type[Enum],
+  name: str,
+  nullable: bool = False,
+) -> None:
+  """Validates that a value is either an enum instance or a valid string."""
+  if value is None:
+    if not nullable:
+      raise TypeError(f"Required attribute '{name}' cannot be None")
+  match value:
+    case None if not nullable:
+      raise ValueError(f"Required attribute '{name}' cannot be None")
+    case value if value in enum_class:
+      return
+    case str():
+      if not value.startswith("x-"):
+        raise ValueError(
+          f"{value} doesn't start with 'x-' (found {value[:2]} nor is it part of {enum_class.__name__})"
+        )
+    case _:
+      raise TypeError(
+        f"Expected {enum_class.__name__} or str starting with 'x-' for '{name}' but got {type(value)}"
+      )

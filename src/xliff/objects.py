@@ -10,10 +10,10 @@ from xliff.constants import (
   PURPOSE,
   UNIT,
 )
-from xliff.utils import (
+from xliff.helpers import (
   convert_to_boolean,
-  ensure_enum,
   ensure_correct_element,
+  ensure_enum,
   ensure_usable_element,
   stringify,
 )
@@ -44,7 +44,7 @@ class ElementSerializationMixin:
     element_factory: Optional[
       Python_ElementFactory | Callable[[str, Mapping[str, str]], ElementLikeProtocol]
     ] = None,
-  ) -> ElementLikeProtocol | let._Element | pet.Element:
+  ) -> ElementLike:
     """
     Serializes the object to an XML element using the provided factory.
 
@@ -141,7 +141,7 @@ class BaseXliffElement(ElementSerializationMixin):
         recurse (bool, optional): If the object's children should also be validated. Defaults to True.
 
     Raises:
-        TypeError: If one of the object's attribute is not one of its expected type.
+        ValidationError: If any attribute fails validation.
 
     Returns:
         bool: True if the object is valid and ready for serialization or False if
