@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any, TypeIs, TypeVar, overload
+from typing import Any, TypeGuard, TypeVar, overload
 from xml.etree.ElementTree import Element
 from lxml.etree import _Element
 from xliff.constants import __FAKE__ELEMENT__, ElementLikeProtocol
@@ -25,7 +25,7 @@ def ensure_correct_element(expected_tag: str, element: Any) -> None:
 
 def ensure_usable_element(
   unknown_element: Any,
-) -> TypeIs[ElementLikeProtocol | _Element | Element]:
+) -> TypeGuard[ElementLikeProtocol | _Element | Element]:
   """
   Determines whether the given object is usable as an XML element.
 
@@ -133,35 +133,33 @@ def ensure_enum(value: str | T, enum: type[T]) -> str | T:
 
 def validate_type(
   value: Any,
+  *,
   expected_type: type | tuple[type, ...],
   name: str,
-  nullable: bool = False,
-  raise_on_error: bool = True,
-) -> bool:
+  optional: bool = False,
+) -> None:
   """Generic type validator with standardized error messages."""
   if value is None:
-    if not nullable:
+    if not optional:
       raise TypeError(f"Required attribute '{name}' cannot be None")
   if not isinstance(value, expected_type):
-    if raise_on_error:
-      type_name = getattr(expected_type, "__name__", str(expected_type))
-      raise TypeError(f"Expected {type_name} for '{name}' but got {type(value)}")
-    return False
-  return True
+    type_name = getattr(expected_type, "__name__", str(expected_type))
+    raise TypeError(f"Expected {type_name} for '{name}' but got {type(value)}")
 
 
 def validate_enum(
   value: Any,
+  *,
   enum_class: type[Enum],
   name: str,
-  nullable: bool = False,
+  optional: bool = False,
 ) -> None:
   """Validates that a value is either an enum instance or a valid string."""
   if value is None:
-    if not nullable:
+    if not optional:
       raise TypeError(f"Required attribute '{name}' cannot be None")
   match value:
-    case None if not nullable:
+    case None if not optional:
       raise ValueError(f"Required attribute '{name}' cannot be None")
     case value if value in enum_class:
       return

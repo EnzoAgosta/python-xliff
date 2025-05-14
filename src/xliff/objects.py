@@ -1,7 +1,8 @@
 from collections.abc import Callable, Mapping, MutableSequence
 from dataclasses import dataclass
-from enum import Enum
+from functools import partial
 from typing import ClassVar, Optional, overload, override
+from warnings import warn
 from xliff.constants import (
   __FAKE__ELEMENT__,
   ElementLike,
@@ -12,15 +13,19 @@ from xliff.constants import (
   PURPOSE,
   UNIT,
 )
+from xliff.errors import ValidationError
 from xliff.helpers import (
   convert_to_boolean,
   ensure_correct_element,
   ensure_enum,
   ensure_usable_element,
   stringify,
+  validate_enum,
+  validate_type,
 )
 import lxml.etree as let
 import xml.etree.ElementTree as pet
+
 
 class ElementSerializationMixin:
   """
@@ -68,11 +73,20 @@ class ElementSerializationMixin:
       element_factory = let.Element  # type: ignore
     return self._to_element(element_factory)  # type: ignore
 
+
+@dataclass
+class ValidationSpec:
+  name: str  # attribute name
+  expected_type: type | tuple[type, ...]
+  optional: bool
+
+
 class BaseXliffElement(ElementSerializationMixin):
   _xml_tag: ClassVar[str]
   _xml_attribute_map: ClassVar[dict[str, str]]
   _has_content: ClassVar[bool]
   _source_element: Optional[ElementLike]
+  _validators: ClassVar[dict[str, partial[None]]]
   __slots__ = ("_source_element",)
 
   def __init__(self, **kwargs) -> None:
@@ -122,6 +136,7 @@ class BaseXliffElement(ElementSerializationMixin):
     }
 
   def _to_element(self, element_factory: Callable[..., ElementLike]) -> ElementLike:
+    self.validate(raise_on_error=False)
     element_factory_ = let.Element if element_factory is None else element_factory
     element = element_factory_(self._xml_tag, self._attribute_dict)
     return element
@@ -147,7 +162,16 @@ class BaseXliffElement(ElementSerializationMixin):
         bool: True if the object is valid and ready for serialization or False if
         `raise_on_error` is False and the object is incorrect.
     """
-    raise NotImplementedError
+    try:
+      for attr, validator in self._validators.items():
+        validator(getattr(self, attr))
+    except (ValueError, TypeError) as e:
+      if raise_on_error:
+        raise ValidationError(
+          f"{self!r} failed validation because of a {type(e)}"
+        ) from e
+      return False
+    return True
 
 
 class Count(BaseXliffElement):
@@ -158,10 +182,21 @@ class Count(BaseXliffElement):
     "phase_name": "phase-name",
     "unit": "unit",
   }
-  _value: int
+  value: int
   count_type: str | COUNT_TYPE
   phase_name: Optional[str]
   unit: Optional[str | UNIT]
+
+  _validators = {
+    "value": partial(validate_type, expected_type=int, name="value", optional=False),
+    "count_type": partial(
+      validate_enum, enum_class=COUNT_TYPE, name="count_type", optional=False
+    ),
+    "phase_name": partial(
+      validate_type, expected_type=str, name="phase_name", optional=True
+    ),
+    "unit": partial(validate_enum, enum_class=UNIT, name="unit", optional=True),
+  }
 
   __slots__ = (
     "value",
@@ -212,7 +247,7 @@ class Count(BaseXliffElement):
     """
     super().__init__(**kwargs)
     if self.count_type is None:
-      raise ValueError("Missing a value for attribute 'count_type'")
+      warn("Missing a value for attribute 'count_type'")
     else:
       self.count_type = ensure_enum(self.count_type, COUNT_TYPE)
     if self.unit is not None:
@@ -223,7 +258,7 @@ class Count(BaseXliffElement):
     if "value" in kwargs:
       self.value = kwargs["value"]
     elif self._source_element is None or self._source_element.text is None:
-      raise ValueError("Missing a value for attribute 'value'")
+      warn("Missing a value for attribute 'value'")
     else:
       self.value = int(self._source_element.text)
 
@@ -231,40 +266,6 @@ class Count(BaseXliffElement):
     element = super()._to_element(element_factory)
     element.text = stringify(self.value)
     return element
-
-  @override
-  def validate(self, *, raise_on_error: bool = True) -> bool: 
-    # required
-    if not isinstance(self.value, int):
-      if raise_on_error:
-        raise TypeError(f"Expected a int for 'value' but got {type(self.value)}")
-      return False
-    # enums
-    try:
-      ensure_enum(self.count_type, COUNT_TYPE)
-    except (TypeError, ValueError) as e:
-      if raise_on_error:
-        raise TypeError(
-          f"Expected a COUNT_TYPE or str starting with 'x-' for 'count_type' but got {type(self.value)}"
-        ) from e
-      return False
-    if self.unit is not None:
-      try:
-        ensure_enum(self.unit, UNIT)
-      except (TypeError, ValueError) as e:
-        if raise_on_error:
-          raise TypeError(
-            f"Expected a UNIT or str starting with 'x-' for 'unit' but got {type(self.unit)}"
-          ) from e
-        return False
-    # optional
-    if self.phase_name is not None and not isinstance(self.phase_name, str):
-      if raise_on_error:
-        raise TypeError(
-          f"Expected a str or None for 'phase_name' but got {type(self.phase_name)}"
-        )
-      return False
-    return True
 
 
 class CountGroup(BaseXliffElement):
@@ -276,6 +277,10 @@ class CountGroup(BaseXliffElement):
   __slots__ = ("name", "counts")
   name: str
   counts: MutableSequence[Count]
+
+  _validators = {
+    "name": partial(validate_type, expected_type=str, name="name", optional=False),
+  }
 
   @overload
   def __init__(
@@ -310,7 +315,7 @@ class CountGroup(BaseXliffElement):
     """
     super().__init__(**kwargs)
     if not isinstance(self.name, str):
-      raise ValueError("No value provided for required attribute 'name'")
+      warn("No value provided for required attribute 'name'")
 
   def _init_content(self, **kwargs):
     if "counts" in kwargs:
@@ -328,26 +333,18 @@ class CountGroup(BaseXliffElement):
 
   @override
   def validate(self, *, recurse: bool = False, raise_on_error: bool = True) -> bool:
-    # required
-    if not isinstance(self.name, str):
-      if raise_on_error:
-        raise TypeError(f"Expected a str for 'name' but got {type(self.name)}")
-      return False
-    # recurse
-    if recurse:
-      for count in self.counts:
-        try:
-          if not isinstance(count, Count) or not count.validate(
-            raise_on_error=raise_on_error
-          ):
-            return False
-        except TypeError as e:
-          if raise_on_error:
-            raise TypeError(
-              f"Expected an Iterable of `Count` for 'counts' but got {type(count)}"
-            ) from e
+    if not recurse:
+      return super().validate(raise_on_error=raise_on_error)
+    else:
+      try:
+        if not super().validate(raise_on_error=raise_on_error):
           return False
-    return True
+        for count in self.counts:
+          if not count.validate(raise_on_error=raise_on_error):
+            return False
+        return True
+      except ValidationError as e:
+        raise e
 
 
 class Context(BaseXliffElement):
@@ -358,6 +355,17 @@ class Context(BaseXliffElement):
     "crc": "crc",
   }
   _has_content = True
+  _validators = {
+    "value": partial(validate_type, expected_type=str, name="value", optional=False),
+    "context_type": partial(
+      validate_enum, enum_class=CONTEXT_TYPE, name="count_type", optional=False
+    ),
+    "match_mandatory": partial(
+      validate_type, expected_type=bool, name="match_mandatory", optional=True
+    ),
+    "crc": partial(validate_type, expected_type=str, name="unit", optional=True),
+  }
+
   __slots__ = (
     "value",
     "context_type",
@@ -365,9 +373,9 @@ class Context(BaseXliffElement):
     "crc",
   )
   value: str
-  context_type: CONTEXT_TYPE
+  context_type: str | CONTEXT_TYPE
   match_mandatory: Optional[bool]
-  crc: str
+  crc: Optional[str]
 
   @overload
   def __init__(
@@ -413,8 +421,9 @@ class Context(BaseXliffElement):
     """
     super().__init__(**kwargs)
     if self.context_type is None:
-      raise ValueError("Missing a value for attribute 'context_type'")
-    self.context_type = ensure_enum(self.context_type, CONTEXT_TYPE)
+      warn("Missing a value for attribute 'context_type'")
+    else:
+      self.context_type = ensure_enum(self.context_type, CONTEXT_TYPE)
     if self.match_mandatory is not None:
       self.match_mandatory = convert_to_boolean(self.match_mandatory)
 
@@ -422,7 +431,7 @@ class Context(BaseXliffElement):
     if "value" in kwargs:
       self.value = kwargs["value"]
     elif self._source_element is None or self._source_element.text is None:
-      raise ValueError("Missing a value for attribute 'value'")
+      warn("Missing a value for attribute 'value'")
     else:
       self.value = self._source_element.text
 
@@ -430,37 +439,6 @@ class Context(BaseXliffElement):
     element = super()._to_element(element_factory)
     element.text = self.value
     return element
-
-  @override
-  def validate(self, *, raise_on_error: bool = True) -> bool:
-    # required
-    if not isinstance(self.value, str):
-      if raise_on_error:
-        raise TypeError(f"Expected a str for 'value' but got {type(self.value)}")
-      return False
-
-    # enums
-    try:
-      ensure_enum(self.context_type, CONTEXT_TYPE)
-    except (TypeError, ValueError) as e:
-      if raise_on_error:
-        raise TypeError(
-          f"Expected a `CONTEXT_TYPE` or str starting with 'x-' for 'context_type' but got {type(self.context_type)}"
-        ) from e
-      return False
-
-    # optional
-    if self.crc is not None and not isinstance(self.crc, str):
-      if raise_on_error:
-        raise TypeError(f"Expected a str or None for 'crc' but got {type(self.crc)}")
-      return False
-    if self.match_mandatory not in (None, True, False):
-      if raise_on_error:
-        raise TypeError(
-          f"Expected a bool or None for 'match_mandatory' but got {type(self.match_mandatory)}"
-        )
-      return False
-    return True
 
 
 class ContextGroup(BaseXliffElement):
@@ -471,6 +449,13 @@ class ContextGroup(BaseXliffElement):
     "purpose": "purpose",
   }
   _has_content = True
+  _validators = {
+    "crc": partial(validate_type, expected_type=str, name="unit", optional=True),
+    "name": partial(validate_type, expected_type=str, name="value", optional=True),
+    "purpose": partial(
+      validate_enum, enum_class=PURPOSE, name="purpose", optional=False
+    ),
+  }
   __slots__ = ("crc", "name", "purpose", "contexts")
   crc: Optional[str]
   name: Optional[str]
@@ -540,38 +525,17 @@ class ContextGroup(BaseXliffElement):
       element.append(context.to_element(element_factory))
     return element
 
+  @override
   def validate(self, *, recurse: bool = False, raise_on_error: bool = True) -> bool:
-    # Optional
-    if self.name is not None and not isinstance(self.name, str):
-      if raise_on_error:
-        raise TypeError(f"Expected a str or None for 'name' but got {type(self.name)}")
-      return False
-    if self.crc is not None and not isinstance(self.crc, str):
-      if raise_on_error:
-        raise TypeError(f"Expected a str or None for 'crc' but got {type(self.crc)}")
-      return False
-    # enums
-    if self.purpose is not None:
+    if not recurse:
+      return super().validate(raise_on_error=raise_on_error)
+    else:
       try:
-        ensure_enum(self.purpose, PURPOSE)
-      except (TypeError, ValueError) as e:
-        if raise_on_error:
-          raise TypeError(
-            f"Expected a `PURPOSE` or str starting with 'x-' for 'purpose' but got {type(self.purpose)}"
-          ) from e
-        return False
-    # recurse
-    if recurse:
-      for context in self.contexts:
-        try:
-          if not isinstance(context, Context) or not context.validate(
-            raise_on_error=raise_on_error
-          ):
-            return False
-        except TypeError as e:
-          if raise_on_error:
-            raise TypeError(
-              f"Expected an Iterable of `Context` for 'contexts' but got {type(context)}"
-            ) from e
+        if not super().validate(raise_on_error=raise_on_error):
           return False
-    return True
+        for context in self.contexts:
+          if not context.validate(raise_on_error=raise_on_error):
+            return False
+        return True
+      except ValidationError as e:
+        raise e
