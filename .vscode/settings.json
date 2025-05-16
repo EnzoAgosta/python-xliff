@@ -2,5 +2,12 @@
     "python.analysis.autoImportCompletions": true,
     "editor.tabSize": 2,
     "editor.inlineSuggest.enabled": false,
-    "editor.rulers": [88]
+    "editor.rulers": [
+        88
+    ],
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
 }

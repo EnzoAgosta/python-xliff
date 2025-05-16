@@ -3,6 +3,7 @@ from collections.abc import Callable, Iterable, Mapping, MutableSequence
 from functools import partial
 from typing import ClassVar, Optional, overload, override
 from warnings import warn
+from xml.dom import XML_NAMESPACE
 from xliff.constants import (
   __FAKE__ELEMENT__,
   ElementLike,
@@ -598,4 +599,61 @@ class ContextGroup(BaseXliffElement):
     element = super()._to_element(element_factory)
     for context in self.contexts:
       element.append(context.to_element(element_factory))
+    return element
+
+
+class Prop(BaseXliffElement):
+  _xml_tag = "prop"
+  _xml_attribute_map = {"prop_type": "prop-type", "lang": f"{{{XML_NAMESPACE}}}lang"}
+  _has_content = True
+  _validators = {
+    "prop_type": partial(validate_type, expected=str, name="prop_type", optional=False),
+    "value": partial(validate_type, expected=str, name="value", optional=False),
+    "lang": partial(validate_type, expected=str, name="lang", optional=True),
+  }
+  value: str
+  prop_type: str
+  lang: Optional[str]
+  __slots__ = ("value", "prop_type", "lang")
+
+  @overload
+  def __init__(
+    self,
+    *,
+    source_element: ElementLike,
+  ) -> None: ...
+  @overload
+  def __init__(
+    self,
+    *,
+    source_element: ElementLike,
+    value: Optional[str] = None,
+    prop_type: Optional[str] = None,
+    lang: Optional[str | PURPOSE] = None,
+  ) -> None: ...
+  @overload
+  def __init__(
+    self,
+    *,
+    value: str,
+    prop_type: str,
+    lang: Optional[str] = None,
+  ) -> None: ...
+  def __init__(self, **kwargs):
+    super().__init__(**kwargs)
+    for _, e in self._validate_attributes(gather_all_errors=True).errors:
+      warn(str(e))
+
+  def _init_content(self, **kwargs):
+    if "value" in kwargs:
+      self.value = kwargs["value"]
+    elif self._source_element is None or self._source_element.text is None:
+      self.value = None
+      warn("Missing a value for attribute 'value'")
+    else:
+      self.value = self._source_element.text
+
+  def _to_element(self, element_factory):
+    element = super()._to_element(element_factory)
+    element.text = self.value
     return element
