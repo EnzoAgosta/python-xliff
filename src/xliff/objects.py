@@ -15,9 +15,9 @@ from xliff.constants import (
 )
 from xliff.errors import ValidationError, ValidationErrorGroup
 from xliff.helpers import (
-  convert_to_boolean,
+  try_convert_to_boolean,
   ensure_correct_element,
-  ensure_enum,
+  try_convert_to_enum,
   ensure_usable_element,
   stringify,
   validate_enum,
@@ -86,6 +86,7 @@ class BaseXliffElement(ElementSerializationMixin):
   def __init__(self, **kwargs) -> None:
     # Check if we have a source xml element and ensure it's correct else use a temp
     # element to not break anything
+    self._children = tuple()
     source_element = kwargs.pop("source_element", __FAKE__ELEMENT__)
     if not ensure_usable_element(source_element):
       raise TypeError(f"{source_element!r} is not a valid XML Element like object")
@@ -335,19 +336,17 @@ class Count(BaseXliffElement):
       ValueError: If required attributes are missing or the tag of the element is incorrect.
     """
     super().__init__(**kwargs)
-    self._children = tuple()
-    if self.count_type is None:
-      warn("Missing a value for attribute 'count_type'")
-    else:
-      self.count_type = ensure_enum(self.count_type, COUNT_TYPE)
-    if self.unit is not None:
-      self.unit = ensure_enum(self.unit, UNIT)
+    self.count_type = try_convert_to_enum(self.count_type, COUNT_TYPE)
+    self.unit = try_convert_to_enum(self.unit, UNIT)
+    for _, e in self._validate_attributes(gather_all_errors=True).errors:
+      warn(str(e))
 
   @override
   def _init_content(self, **kwargs):
     if "value" in kwargs:
       self.value = kwargs["value"]
     elif self._source_element is None or self._source_element.text is None:
+      self.value = None
       warn("Missing a value for attribute 'value'")
     else:
       self.value = int(self._source_element.text)
@@ -405,8 +404,8 @@ class CountGroup(BaseXliffElement):
     """
     super().__init__(**kwargs)
     self._children = self.counts
-    if not isinstance(self.name, str):
-      warn("No value provided for required attribute 'name'")
+    for _, e in self._validate_attributes(gather_all_errors=True).errors:
+      warn(str(e))
 
   def _init_content(self, **kwargs):
     if "counts" in kwargs:
@@ -497,17 +496,16 @@ class Context(BaseXliffElement):
     """
     super().__init__(**kwargs)
     self._children = tuple()
-    if self.context_type is None:
-      warn("Missing a value for attribute 'context_type'")
-    else:
-      self.context_type = ensure_enum(self.context_type, CONTEXT_TYPE)
-    if self.match_mandatory is not None:
-      self.match_mandatory = convert_to_boolean(self.match_mandatory)
+    self.context_type = try_convert_to_enum(self.context_type, CONTEXT_TYPE)
+    self.match_mandatory = try_convert_to_boolean(self.match_mandatory)
+    for _, e in self._validate_attributes(gather_all_errors=True).errors:
+      warn(str(e))
 
   def _init_content(self, **kwargs):
     if "value" in kwargs:
       self.value = kwargs["value"]
     elif self._source_element is None or self._source_element.text is None:
+      self.value = None
       warn("Missing a value for attribute 'value'")
     else:
       self.value = self._source_element.text
@@ -529,7 +527,7 @@ class ContextGroup(BaseXliffElement):
   _validators = {
     "crc": partial(validate_type, expected=str, name="unit", optional=True),
     "name": partial(validate_type, expected=str, name="value", optional=True),
-    "purpose": partial(validate_enum, expected=PURPOSE, name="purpose", optional=False),
+    "purpose": partial(validate_enum, expected=PURPOSE, name="purpose", optional=True),
   }
   __slots__ = ("crc", "name", "purpose", "contexts")
   crc: Optional[str]
@@ -582,8 +580,9 @@ class ContextGroup(BaseXliffElement):
 
     super().__init__(**kwargs)
     self._children = self.contexts
-    if self.purpose is not None:
-      self.purpose = ensure_enum(self.purpose, PURPOSE)
+    self.purpose = try_convert_to_enum(self.purpose, PURPOSE)
+    for _, e in self._validate_attributes(gather_all_errors=True).errors:
+      warn(str(e))
 
   def _init_content(self, **kwargs):
     if "contexts" in kwargs:

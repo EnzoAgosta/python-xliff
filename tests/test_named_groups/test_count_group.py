@@ -1,4 +1,5 @@
 import unittest
+from xliff.errors import ValidationError
 from xliff.objects import CountGroup, Count
 from xliff.constants import COUNT_TYPE
 
@@ -34,19 +35,21 @@ class TestCountGroup(unittest.TestCase):
         Count(value=2, count_type="total"),
       ],
     )
-    self.assertTrue(group.validate())
-    self.assertTrue(group.validate(recurse=True))
+    group.validate(recurse=False)
+    group.validate(recurse=True)
 
 
 class TestCountGroupMalformedData(unittest.TestCase):
   def test_missing_name_raises(self) -> None:
-    with self.assertRaises(ValueError):
-      CountGroup(counts=[Count(value=1, count_type="total")])  # type: ignore
+    with self.assertWarns(UserWarning):
+      group = CountGroup(counts=[Count(value=1, count_type="total")])  # type: ignore
+    with self.assertRaises(ValidationError):
+      group.validate()
 
   def test_non_string_name_raises_in_validate(self) -> None:
     group = CountGroup(name="valid", counts=[])
     group.name = 123  # type: ignore
-    with self.assertRaises(TypeError):
+    with self.assertRaises(ValidationError):
       group.validate()
 
   def test_invalid_child_in_validate_recurse(self) -> None:
@@ -55,5 +58,5 @@ class TestCountGroupMalformedData(unittest.TestCase):
     invalid.unit = "invalid"  # type: ignore
 
     group = CountGroup(name="group", counts=[valid, invalid])
-    with self.assertRaises(TypeError):
+    with self.assertRaises(ValidationError):
       group.validate(recurse=True)

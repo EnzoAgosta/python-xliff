@@ -74,7 +74,7 @@ def stringify(value: Any) -> str:
       raise NotImplementedError
 
 
-def convert_to_boolean(value: Any) -> bool:
+def try_convert_to_boolean(value: Any) -> bool:
   """
   Converts a string to a boolean value, returns the value if already a boolean.
 
@@ -87,25 +87,22 @@ def convert_to_boolean(value: Any) -> bool:
   Raises:
       TypeError: If input is not a boolean or one of the valid strings ('yes', 'no').
   """
-  match value:
-    case True | False:
-      return value
-    case "yes":
-      return True
-    case "no":
-      return False
-    case _:
-      raise TypeError(f"expected a bool or one of 'yes' or 'no' but got {value!r}")
+  return True if value == "yes" else False if value == "no" else value
 
 
-T = TypeVar("T", bound=Enum)
+E = TypeVar("E", bound=Enum)
+T = TypeVar("T", bound=Any)
 
 
 @overload
-def ensure_enum(value: T, enum: type[T]) -> T: ...
+def try_convert_to_enum(value: E, enum: type[E]) -> E: ...
 @overload
-def ensure_enum(value: str | T, enum: type[T]) -> str | T: ...
-def ensure_enum(value: str | T, enum: type[T]) -> str | T:
+def try_convert_to_enum(value: str, enum: type[E]) -> str: ...
+@overload
+def try_convert_to_enum(value: T, enum: type[E]) -> T: ...
+@overload
+def try_convert_to_enum(value: str | T | E, enum: type[T]) -> str | T: ...
+def try_convert_to_enum(value, enum):
   """
   Converts `value` to a member of `enum` if possible or returns it as-is if it is a
   `str` starting with 'x-'
@@ -124,11 +121,12 @@ def ensure_enum(value: str | T, enum: type[T]) -> str | T:
   if isinstance(value, enum):
     return value
   elif isinstance(value, str):
-    if value.startswith("x-"):
+    if value in enum:
+      return enum(value)
+    else:
       return value
-    return enum(value)
   else:
-    raise TypeError(f"expected a string or a member of {enum} but got {type(value)}")
+    return value
 
 
 def validate_type(
@@ -142,6 +140,7 @@ def validate_type(
   if value is None:
     if not optional:
       raise TypeError(f"Required attribute '{name}' cannot be None")
+    return
   if not isinstance(value, expected):
     type_name = getattr(expected, "__name__", str(expected))
     raise TypeError(f"Expected {type_name} for '{name}' but got {type(value)}")
@@ -155,12 +154,10 @@ def validate_enum(
   optional: bool = False,
 ) -> None:
   """Validates that a value is either an enum instance or a valid string."""
-  if value is None:
-    if not optional:
-      raise TypeError(f"Required attribute '{name}' cannot be None")
   match value:
-    case None if not optional:
-      raise ValueError(f"Required attribute '{name}' cannot be None")
+    case None:
+      if not optional:
+        raise ValueError(f"Required attribute '{name}' cannot be None")
     case value if value in expected:
       return
     case str():

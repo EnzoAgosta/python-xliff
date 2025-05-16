@@ -1,4 +1,5 @@
 import unittest
+from xliff.errors import ValidationError
 from xliff.objects import Count
 from xliff.constants import COUNT_TYPE, UNIT
 
@@ -20,28 +21,36 @@ class TestCount(unittest.TestCase):
 
   def test_validate_success(self) -> None:
     count = Count(value=100, count_type=COUNT_TYPE.TOTAL)
-    self.assertTrue(count.validate())
+    count.validate()
 
 
 class TestCountMalformedData(unittest.TestCase):
   def test_missing_value_raises(self) -> None:
-    with self.assertRaises(ValueError):
-      Count(count_type="total")  # type: ignore
+    with self.assertWarns(UserWarning):
+      count = Count(count_type="total")  # type: ignore
+    with self.assertRaises(ValidationError):
+      count.validate()
 
   def test_missing_count_type_raises(self) -> None:
-    with self.assertRaises(ValueError):
-      Count(value=1)  # type: ignore
+    with self.assertWarns(UserWarning):
+      count = Count(value=1)  # type: ignore
+    with self.assertRaises(ValidationError):
+      count.validate()
 
   def test_invalid_count_type_raises(self) -> None:
-    with self.assertRaises(ValueError):
-      Count(value=5, count_type="not-a-type")
+    with self.assertWarns(UserWarning):
+      count = Count(value=5, count_type="not-a-type")
+    with self.assertRaises(ValidationError):
+      count.validate()
 
   def test_invalid_unit_type_raises(self) -> None:
-    with self.assertRaises(ValueError):
-      Count(value=5, count_type="total", unit="invalid-unit")
+    with self.assertWarns(UserWarning):
+      count = Count(value=5, count_type="total", unit="invalid-unit")
+    with self.assertRaises(ValidationError):
+      count.validate()
 
   def test_invalid_type_in_validate(self) -> None:
     count = Count(value=5, count_type="total")
     count.unit = "not-a-unit"  # type: ignore
-    with self.assertRaises(TypeError):
+    with self.assertRaises(ValidationError):
       count.validate()

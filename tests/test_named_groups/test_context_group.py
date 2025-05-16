@@ -1,4 +1,5 @@
 import unittest
+from xliff.errors import ValidationError
 from xliff.objects import ContextGroup, Context
 from xliff.constants import CONTEXT_TYPE, PURPOSE
 
@@ -41,14 +42,16 @@ class TestContextGroup(unittest.TestCase):
         Context(value="data", context_type="linenumber"),
       ]
     )
-    self.assertTrue(group.validate())
-    self.assertTrue(group.validate(recurse=True))
+    group.validate(recurse=False)
+    group.validate(recurse=True)
 
 
 class TestContextGroupMalformedData(unittest.TestCase):
   def test_invalid_purpose_raises(self) -> None:
-    with self.assertRaises(ValueError):
-      ContextGroup(purpose="not-a-purpose").validate()
+    with self.assertWarns(UserWarning):
+      group = ContextGroup(purpose="not-a-purpose")
+    with self.assertRaises(ValidationError):
+      group.validate()
 
   def test_invalid_context_in_recurse(self) -> None:
     good = Context(value="Good", context_type="sourcefile")
@@ -56,10 +59,11 @@ class TestContextGroupMalformedData(unittest.TestCase):
     bad.crc = 12345  # type: ignore
 
     group = ContextGroup(contexts=[good, bad])
-    with self.assertRaises(TypeError):
+    with self.assertRaises(ValidationError):
       group.validate(recurse=True)
 
   def test_non_string_crc_in_validate(self) -> None:
-    group = ContextGroup(contexts=[], crc=1234)  # type: ignore
-    with self.assertRaises(TypeError):
+    with self.assertWarns(UserWarning):
+      group = ContextGroup(contexts=[], crc=1234)  # type: ignore
+    with self.assertRaises(ValidationError):
       group.validate()

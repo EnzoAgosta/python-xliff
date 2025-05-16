@@ -1,4 +1,5 @@
 import unittest
+from xliff.errors import ValidationError
 from xliff.objects import Context
 from xliff.constants import CONTEXT_TYPE
 
@@ -26,24 +27,24 @@ class TestContext(unittest.TestCase):
 
   def test_validate_success(self) -> None:
     ctx = Context(value="Label", context_type=CONTEXT_TYPE.SOURCEFILE)
-    self.assertTrue(ctx.validate())
+    ctx.validate()
 
 
 class TestContextMalformedData(unittest.TestCase):
-  def test_missing_value_raises(self) -> None:
-    with self.assertRaises(ValueError):
+  def test_missing_value_warns(self) -> None:
+    with self.assertWarns(UserWarning):
       Context(context_type="sourcefile")  # type: ignore
 
   def test_missing_context_type_raises(self) -> None:
-    with self.assertRaises(ValueError):
+    with self.assertWarns(UserWarning):
       Context(value="MyFile")  # type: ignore
 
-  def test_invalid_enum_value_raises(self) -> None:
-    with self.assertRaises(ValueError):
-      Context(value="bad", context_type="not-a-context")  # type: ignore
+  def test_invalid_enum_value_warns(self) -> None:
+    with self.assertWarns(UserWarning):
+      Context(value="bad", context_type="not-a-context")
 
   def test_invalid_type_in_validate(self) -> None:
     ctx = Context(value="ok", context_type="sourcefile")
     ctx.crc = 1234  # type: ignore
-    with self.assertRaises(TypeError):
+    with self.assertRaises(ValidationError):
       ctx.validate()
