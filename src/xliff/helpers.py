@@ -134,7 +134,7 @@ def ensure_enum(value: str | T, enum: type[T]) -> str | T:
 def validate_type(
   value: Any,
   *,
-  expected_type: type | tuple[type, ...],
+  expected: type | tuple[type, ...],
   name: str,
   optional: bool = False,
 ) -> None:
@@ -142,15 +142,15 @@ def validate_type(
   if value is None:
     if not optional:
       raise TypeError(f"Required attribute '{name}' cannot be None")
-  if not isinstance(value, expected_type):
-    type_name = getattr(expected_type, "__name__", str(expected_type))
+  if not isinstance(value, expected):
+    type_name = getattr(expected, "__name__", str(expected))
     raise TypeError(f"Expected {type_name} for '{name}' but got {type(value)}")
 
 
 def validate_enum(
   value: Any,
   *,
-  enum_class: type[Enum],
+  expected: type[Enum],
   name: str,
   optional: bool = False,
 ) -> None:
@@ -161,14 +161,14 @@ def validate_enum(
   match value:
     case None if not optional:
       raise ValueError(f"Required attribute '{name}' cannot be None")
-    case value if value in enum_class:
+    case value if value in expected:
       return
     case str():
       if not value.startswith("x-"):
         raise ValueError(
-          f"{value} doesn't start with 'x-' (found {value[:2]} nor is it part of {enum_class.__name__})"
+          f"{value} doesn't start with 'x-' (found {value[:2]} nor is it part of {expected.__name__})"
         )
     case _:
       raise TypeError(
-        f"Expected {enum_class.__name__} or str starting with 'x-' for '{name}' but got {type(value)}"
+        f"Expected {expected.__name__} or str starting with 'x-' for '{name}' but got {type(value)}"
       )

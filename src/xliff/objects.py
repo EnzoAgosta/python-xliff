@@ -1,5 +1,5 @@
-from collections.abc import Callable, Mapping, MutableSequence
-from dataclasses import dataclass
+from __future__ import annotations
+from collections.abc import Callable, Iterable, Mapping, MutableSequence
 from functools import partial
 from typing import ClassVar, Optional, overload, override
 from warnings import warn
@@ -13,7 +13,7 @@ from xliff.constants import (
   PURPOSE,
   UNIT,
 )
-from xliff.errors import ValidationError
+from xliff.errors import ValidationError, ValidationErrorGroup
 from xliff.helpers import (
   convert_to_boolean,
   ensure_correct_element,
@@ -74,20 +74,14 @@ class ElementSerializationMixin:
     return self._to_element(element_factory)  # type: ignore
 
 
-@dataclass
-class ValidationSpec:
-  name: str  # attribute name
-  expected_type: type | tuple[type, ...]
-  optional: bool
-
-
 class BaseXliffElement(ElementSerializationMixin):
   _xml_tag: ClassVar[str]
   _xml_attribute_map: ClassVar[dict[str, str]]
   _has_content: ClassVar[bool]
   _source_element: Optional[ElementLike]
+  _children: Iterable[BaseXliffElement]
   _validators: ClassVar[dict[str, partial[None]]]
-  __slots__ = ("_source_element",)
+  __slots__ = ("_source_element", "_children")
 
   def __init__(self, **kwargs) -> None:
     # Check if we have a source xml element and ensure it's correct else use a temp
@@ -136,42 +130,137 @@ class BaseXliffElement(ElementSerializationMixin):
     }
 
   def _to_element(self, element_factory: Callable[..., ElementLike]) -> ElementLike:
-    self.validate(raise_on_error=False)
+    self.validate(recurse=True)
     element_factory_ = let.Element if element_factory is None else element_factory
     element = element_factory_(self._xml_tag, self._attribute_dict)
     return element
 
-  def validate(self, *, raise_on_error: bool = True) -> bool:
+  def _validate_attributes(
+    self, *, gather_all_errors: bool = False
+  ) -> ValidationErrorGroup:
     """
-    Validates that all the the attributes of the objects are of an expected type.
+    Validates all attributes of the element using their registered validators.
 
-    The optional `raise_on_error` argument can be used to simply return False instead
-    of raising.
-
-    In some implementations, the `recurse`flag can also be set to recursively validate
-    all the object's children as well.
+    This method checks each attribute against its validator defined in the class's
+    _validators dictionary. It either raises the first error encountered or collects
+    all errors into a ValidationErrorGroup.
 
     Args:
-        raise_on_error (bool, optional): If the function should raise a TypeError or simply return False. Defaults to True.
-        recurse (bool, optional): If the object's children should also be validated. Defaults to True.
-
-    Raises:
-        ValidationError: If any attribute fails validation.
+      gather_all_errors (bool): If True, collects all validation errors instead of raising on the first one encountered. Defaults to False.
 
     Returns:
-        bool: True if the object is valid and ready for serialization or False if
-        `raise_on_error` is False and the object is incorrect.
+      ValidationErrorGroup: A group containing all validation errors found. Will be empty if no errors were encountered.
+
+    Raises:
+      ValidationError: If validation fails for any attribute and gather_all_errors is False.
     """
-    try:
-      for attr, validator in self._validators.items():
-        validator(getattr(self, attr))
-    except (ValueError, TypeError) as e:
-      if raise_on_error:
-        raise ValidationError(
-          f"{self!r} failed validation because of a {type(e)}"
-        ) from e
-      return False
-    return True
+    # Initialize our error group
+    validation_error_group = ValidationErrorGroup()
+    for attribute, validator in self._validators.items():
+      try:
+        # Run each validator (subclass dependent)
+        value = getattr(self, attribute)
+        validator(value)
+      except (ValueError, TypeError) as e:
+        # Create the ValidationError with the correct info
+        Error = ValidationError(
+          e,
+          {
+            "attribute": attribute,
+            "value": value,
+            "expected": validator.keywords["expected"],
+            "source": self,
+          },
+        )
+        if not gather_all_errors:
+          # Immediately raise if not gathering.
+          # Since gather_all_errors is passed down from the original validate call
+          # this error will bubble up back to it immediately
+          raise Error
+        # Append our error to our group and move to the next attribute to collect all errors
+        validation_error_group.errors.append((self, Error))
+    # Return all errors
+    return validation_error_group
+
+  def _validate_children(
+    self,
+    *,
+    recurse: bool = True,
+    gather_all_errors: bool = False,
+  ) -> ValidationErrorGroup:
+    """
+    Validates all child elements of this element.
+
+    This method iterates through all children in self._children and validates each one.
+    Validation can be performed recursively through the entire element tree.
+
+    Args:
+      recurse (bool): If True, validates all descendants recursively. If False, only validates direct children. Defaults to True.
+      gather_all_errors (bool): If True, collects all validation errors instead of raising on the first one encountered. Defaults to False.
+
+    Returns:
+      ValidationErrorGroup: A group containing all validation errors found in children. Will be empty if no errors were encountered.
+
+    Raises:
+      ValidationError: If validation fails for any child and gather_all_errors is False.
+      ValidationErrorGroup: If validation fails for multiple children and gather_all_errors is True.
+    """
+    # Initialize the error group
+    validation_error_group = ValidationErrorGroup()
+    for child in self._children:
+      try:
+        # Validate each child, passing down recurse and gather_all_error for consistent behavior
+        child.validate(recurse=recurse, gather_all_errors=gather_all_errors)
+      except ValidationError as e:
+        # Raise directly if not a group since we're not gathering
+        raise e
+      except ValidationErrorGroup as e:
+        # Extend our group with all the errors of that child
+        validation_error_group.errors.extend(e.errors)
+    # Return all the errors
+    return validation_error_group
+
+  def validate(self, *, recurse=True, gather_all_errors=False) -> None:
+    """
+    Validates this element and optionally its children.
+
+    This method performs comprehensive validation on the element, checking that:
+    1. All required attributes are present and have valid values
+    2. If recurse=True, all child elements are also valid
+
+    Following the "lax input, strict output" philosophy, this validation is primarily
+    meant to be called before serialization to ensure only valid data is exported.
+
+    Args:
+      recurse (bool): If True, validates all descendants recursively. If False, only validates this element. Defaults to True.
+      gather_all_errors (bool): If True, collects and raises all validation errors together. If False, raises on the first error encountered. Defaults to False.
+
+    Raises:
+      ValidationError: If validation fails for a single attribute or child and gather_all_errors is False.
+      ValidationErrorGroup: If validation fails for multiple attributes or children and gather_all_errors is True.
+    """
+    # Initialize our error group
+    all_errors = ValidationErrorGroup()
+    # Validate attributes
+    # If not gathering errors, this will simply raise a ValidationError
+    # Else, we collect all the attribute errors
+    all_errors.errors.extend(
+      self._validate_attributes(gather_all_errors=gather_all_errors).errors
+    )
+    # Check all children if needed
+    if recurse:
+      # Validate children
+      # If not gathering error, this will let the first ValidationError bubble up
+      # Else, we'll simply extend our error list with all of the errors in the children
+      all_errors.errors.extend(
+        self._validate_children(
+          recurse=recurse, gather_all_errors=gather_all_errors
+        ).errors
+      )
+    # Raise if we have errors
+    if len(all_errors.errors):
+      raise all_errors
+    return None
 
 
 class Count(BaseXliffElement):
@@ -188,14 +277,14 @@ class Count(BaseXliffElement):
   unit: Optional[str | UNIT]
 
   _validators = {
-    "value": partial(validate_type, expected_type=int, name="value", optional=False),
+    "value": partial(validate_type, expected=int, name="value", optional=False),
     "count_type": partial(
-      validate_enum, enum_class=COUNT_TYPE, name="count_type", optional=False
+      validate_enum, expected=COUNT_TYPE, name="count_type", optional=False
     ),
     "phase_name": partial(
-      validate_type, expected_type=str, name="phase_name", optional=True
+      validate_type, expected=str, name="phase_name", optional=True
     ),
-    "unit": partial(validate_enum, enum_class=UNIT, name="unit", optional=True),
+    "unit": partial(validate_enum, expected=UNIT, name="unit", optional=True),
   }
 
   __slots__ = (
@@ -246,6 +335,7 @@ class Count(BaseXliffElement):
       ValueError: If required attributes are missing or the tag of the element is incorrect.
     """
     super().__init__(**kwargs)
+    self._children = tuple()
     if self.count_type is None:
       warn("Missing a value for attribute 'count_type'")
     else:
@@ -279,7 +369,7 @@ class CountGroup(BaseXliffElement):
   counts: MutableSequence[Count]
 
   _validators = {
-    "name": partial(validate_type, expected_type=str, name="name", optional=False),
+    "name": partial(validate_type, expected=str, name="name", optional=False),
   }
 
   @overload
@@ -314,6 +404,7 @@ class CountGroup(BaseXliffElement):
       ValueError: If required attributes are missing.
     """
     super().__init__(**kwargs)
+    self._children = self.counts
     if not isinstance(self.name, str):
       warn("No value provided for required attribute 'name'")
 
@@ -331,21 +422,6 @@ class CountGroup(BaseXliffElement):
       element.append(count.to_element(element_factory))
     return element
 
-  @override
-  def validate(self, *, recurse: bool = False, raise_on_error: bool = True) -> bool:
-    if not recurse:
-      return super().validate(raise_on_error=raise_on_error)
-    else:
-      try:
-        if not super().validate(raise_on_error=raise_on_error):
-          return False
-        for count in self.counts:
-          if not count.validate(raise_on_error=raise_on_error):
-            return False
-        return True
-      except ValidationError as e:
-        raise e
-
 
 class Context(BaseXliffElement):
   _xml_tag = "context"
@@ -356,14 +432,14 @@ class Context(BaseXliffElement):
   }
   _has_content = True
   _validators = {
-    "value": partial(validate_type, expected_type=str, name="value", optional=False),
+    "value": partial(validate_type, expected=str, name="value", optional=False),
     "context_type": partial(
-      validate_enum, enum_class=CONTEXT_TYPE, name="count_type", optional=False
+      validate_enum, expected=CONTEXT_TYPE, name="count_type", optional=False
     ),
     "match_mandatory": partial(
-      validate_type, expected_type=bool, name="match_mandatory", optional=True
+      validate_type, expected=bool, name="match_mandatory", optional=True
     ),
-    "crc": partial(validate_type, expected_type=str, name="unit", optional=True),
+    "crc": partial(validate_type, expected=str, name="unit", optional=True),
   }
 
   __slots__ = (
@@ -420,6 +496,7 @@ class Context(BaseXliffElement):
       ValueError: If required attributes are missing or the tag of the element is incorrect.
     """
     super().__init__(**kwargs)
+    self._children = tuple()
     if self.context_type is None:
       warn("Missing a value for attribute 'context_type'")
     else:
@@ -450,11 +527,9 @@ class ContextGroup(BaseXliffElement):
   }
   _has_content = True
   _validators = {
-    "crc": partial(validate_type, expected_type=str, name="unit", optional=True),
-    "name": partial(validate_type, expected_type=str, name="value", optional=True),
-    "purpose": partial(
-      validate_enum, enum_class=PURPOSE, name="purpose", optional=False
-    ),
+    "crc": partial(validate_type, expected=str, name="unit", optional=True),
+    "name": partial(validate_type, expected=str, name="value", optional=True),
+    "purpose": partial(validate_enum, expected=PURPOSE, name="purpose", optional=False),
   }
   __slots__ = ("crc", "name", "purpose", "contexts")
   crc: Optional[str]
@@ -506,6 +581,7 @@ class ContextGroup(BaseXliffElement):
     """
 
     super().__init__(**kwargs)
+    self._children = self.contexts
     if self.purpose is not None:
       self.purpose = ensure_enum(self.purpose, PURPOSE)
 
@@ -524,18 +600,3 @@ class ContextGroup(BaseXliffElement):
     for context in self.contexts:
       element.append(context.to_element(element_factory))
     return element
-
-  @override
-  def validate(self, *, recurse: bool = False, raise_on_error: bool = True) -> bool:
-    if not recurse:
-      return super().validate(raise_on_error=raise_on_error)
-    else:
-      try:
-        if not super().validate(raise_on_error=raise_on_error):
-          return False
-        for context in self.contexts:
-          if not context.validate(raise_on_error=raise_on_error):
-            return False
-        return True
-      except ValidationError as e:
-        raise e
