@@ -28,6 +28,10 @@ Elements with ease.
 ```bash
 pip install python-xliff
 ```
+OR
+```bash
+uv add python-xliff
+```
 
 ### Parsing an Existing XLIFF Element
 
@@ -83,7 +87,12 @@ including all required and optional attributes, structural constraints, and cont
 
 ## 🔧 Roadmap
 
-- ✅ Support for all elements and attributes in the spec
+- 🔧 Support for all elements and attributes in the spec
+    - 🔧 Named groups
+    - 🔜 Top-level and Header Elements
+    - 🔜 Structural Elements
+    - 🔜 Inline Elements
+    - 🔜 Delimiter Element
 - 🔜 support for Path/File like objects
 - 🔜 Validation only functions for quick analysis
 - 🔜 CLI version
