@@ -657,3 +657,54 @@ class Prop(BaseXliffElement):
     element = super()._to_element(element_factory)
     element.text = self.value
     return element
+
+
+class PropGroup(BaseXliffElement):
+  _xml_tag = "prop-group"
+  _xml_attribute_map = {
+    "name": "name",
+  }
+  _has_content = True
+  __slots__ = ("name", "props")
+  name: str
+  props: MutableSequence[Prop]
+
+  _validators = {
+    "name": partial(validate_type, expected=str, name="name", optional=False),
+  }
+
+  @overload
+  def __init__(
+    self,
+    *,
+    source_element: ElementLike,
+  ) -> None: ...
+  @overload
+  def __init__(
+    self,
+    *,
+    source_element: ElementLike,
+    name: Optional[str] = None,
+    props: Optional[MutableSequence[Prop]] = None,
+  ) -> None: ...
+  @overload
+  def __init__(self, *, name: str, props: MutableSequence[Prop]) -> None: ...
+  def __init__(self, **kwargs):
+    super().__init__(**kwargs)
+    self._children = self.props
+    for _, e in self._validate_attributes(gather_all_errors=True).errors:
+      warn(str(e))
+
+  def _init_content(self, **kwargs):
+    if "props" in kwargs:
+      self.props = kwargs["props"]
+    elif self._source_element is None or not len(self._source_element):
+      self.props = []
+    else:
+      self.props = [Prop(source_element=prop) for prop in self._source_element]
+
+  def _to_element(self, element_factory):
+    element = super()._to_element(element_factory)
+    for prop in self.props:
+      element.append(prop.to_element(element_factory))
+    return element

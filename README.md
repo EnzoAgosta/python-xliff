@@ -88,9 +88,9 @@ including all required and optional attributes, structural constraints, and cont
 ## 🔧 Roadmap
 
 - 🔧 Support for all elements and attributes in the spec
-    - 🔧 Named groups
+    - ✅ Named groups
+    - 🔧 Structural Elements
     - 🔜 Top-level and Header Elements
-    - 🔜 Structural Elements
     - 🔜 Inline Elements
     - 🔜 Delimiter Element
 - 🔜 support for Path/File like objects
