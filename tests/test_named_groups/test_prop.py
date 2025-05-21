@@ -1,6 +1,6 @@
 import unittest
 from xliff.errors import ValidationError
-from xliff.objects import Prop
+from xliff.named_groups import Prop
 
 
 class TestProp(unittest.TestCase):

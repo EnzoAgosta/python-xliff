@@ -1,6 +1,6 @@
 import unittest
 from xliff.errors import ValidationError
-from xliff.objects import ContextGroup, Context
+from xliff.named_groups import ContextGroup, Context
 from xliff.constants import CONTEXT_TYPE, PURPOSE
 
 

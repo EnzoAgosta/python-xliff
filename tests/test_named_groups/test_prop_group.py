@@ -1,7 +1,7 @@
 import unittest
 from typing import MutableSequence
 from xliff.errors import ValidationError
-from xliff.objects import PropGroup, Prop
+from xliff.named_groups import PropGroup, Prop
 from lxml.etree import Element
 
 

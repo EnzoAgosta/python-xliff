@@ -1,6 +1,6 @@
 import unittest
 from xliff.errors import ValidationError
-from xliff.objects import Count
+from xliff.named_groups import Count
 from xliff.constants import COUNT_TYPE, UNIT
 
 
