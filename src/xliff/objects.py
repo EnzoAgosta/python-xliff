@@ -253,3 +253,66 @@ class BaseXliffElement(ElementSerializationMixin):
     if len(all_errors.errors):
       raise all_errors
     return None
+
+
+class Coord:
+  x: Optional[float]
+  y: Optional[float]
+  cx: Optional[float]
+  cy: Optional[float]
+
+  __slots__ = ("x", "y", "cx", "cy")
+
+  def __init__(
+    self,
+    x: Optional[float | str] = None,
+    y: Optional[float | str] = None,
+    cx: Optional[float | str] = None,
+    cy: Optional[float | str] = None,
+  ):
+    self.x = x if isinstance(x, float) else float(x) if x is not None else None
+    self.y = y if isinstance(y, float) else float(y) if y is not None else None
+    self.cx = cx if isinstance(cx, float) else float(cx) if cx is not None else None
+    self.cy = cy if isinstance(cy, float) else float(cy) if cy is not None else None
+
+  def __str__(self) -> str:
+    return ";".join(
+      getattr(self, attr) if getattr(self, attr) is not None else "#"
+      for attr in (
+        "x",
+        "y",
+        "cx",
+        "cy",
+      )
+    )
+
+
+class Font:
+  name: str
+  size: Optional[str]
+  weight: Optional[str]
+  style: Optional[str]
+  encoding: Optional[str]
+
+  __slots__ = ("name", "size", "weight", "style", "encoding")
+
+  def __init__(
+    self,
+    name: str,
+    size: Optional[str] = None,
+    weight: Optional[str] = None,
+    style: Optional[str] = None,
+    encoding: Optional[str] = None,
+  ):
+    self.name = name
+    self.size = size
+    self.weight = weight
+    self.style = style
+    self.encoding = encoding
+
+  def __str__(self) -> str:
+    return ";".join(
+      getattr(self, attr)
+      for attr in ("name", "size", "weight", "style", "encoding")
+      if getattr(self, attr) is not None
+    )

@@ -4,6 +4,7 @@ from typing import Any, TypeGuard, TypeVar, overload
 from xml.etree.ElementTree import Element
 from lxml.etree import _Element
 from xliff.constants import __FAKE__ELEMENT__, ElementLikeProtocol
+from xliff.objects import Coord
 
 
 def ensure_correct_element(expected_tag: str, element: Any) -> None:
@@ -62,7 +63,7 @@ def stringify(value: Any) -> str:
       NotImplementedError: If the value type is unsupported.
   """
   match value:
-    case str() | int() | float():
+    case str() | int() | float() | Coord():
       return str(value)
     case datetime():
       return value.strftime("%Y%m%dT%H%M%SZ")
